@@ -1,0 +1,36 @@
+# Node
+node_modules/
+.next/
+.turbo/
+dist/
+*.tsbuildinfo
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Supabase
+.branches/
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Personal notes
+Notes/

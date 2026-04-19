@@ -1,0 +1,8 @@
+-- Local development seed data.
+--
+-- Corpus chunks are populated by the ingestion script, not here:
+--   pnpm --filter scripts run ingest-corpus
+--
+-- No other seed data is required for the anonymous-session MVP.
+-- When scheme YAML files are added in Milestone 2, a seed for local
+-- testing can be added here.

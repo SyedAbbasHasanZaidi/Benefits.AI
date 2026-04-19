@@ -1,0 +1,27 @@
+project_id = "benefits-ai"
+
+[api]
+port = 54321
+schemas = ["public", "extensions"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+port = 54323
+enabled = true
+
+[auth]
+site_url = "http://localhost:3000"
+jwt_expiry = 3600
+# Anonymous sessions only — no user sign-up at MVP.
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+
+[realtime]
+enabled = false
