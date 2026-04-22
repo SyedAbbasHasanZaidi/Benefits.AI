@@ -1,0 +1,8 @@
+# Maximum fortnightly Rent Assistance rate for a single person with no children.
+# TODO (post-MVP): verify exact 2024-25 figure and implement taper formula
+#   (actual rate = min(0.75 * (rent - min_rent), max_rate_single)).
+# Reference: https://www.servicesaustralia.gov.au/how-much-rent-assistance-you-can-get
+description: Rent Assistance maximum fortnightly rate — single, no children (AUD)
+values:
+  2024-07-01:
+    value: 211.20

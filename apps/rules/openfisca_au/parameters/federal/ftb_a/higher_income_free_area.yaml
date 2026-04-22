@@ -1,0 +1,7 @@
+# FTB-A Higher Income Free Area — income at which base rate begins to taper.
+# TODO (post-MVP): verify exact 2024-25 figure from Services Australia rate tables.
+# Reference: https://www.servicesaustralia.gov.au/how-much-family-tax-benefit-you-can-get
+description: FTB-A higher income free area (AUD per year)
+values:
+  2024-07-01:
+    value: 80478.0

@@ -1,0 +1,9 @@
+id: FTB_A
+name: Family Tax Benefit Part A
+tier: federal
+agency: Services Australia
+apply_url: https://www.servicesaustralia.gov.au/family-tax-benefit-part-a
+delivery_channel: federal_direct
+plain_description: >
+  A fortnightly payment to help families with the cost of raising children.
+  The amount depends on your family income and the ages of your children.

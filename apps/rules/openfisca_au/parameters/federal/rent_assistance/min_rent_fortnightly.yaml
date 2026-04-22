@@ -1,0 +1,7 @@
+# Minimum fortnightly rent a person must pay to qualify for Rent Assistance.
+# TODO (post-MVP): verify exact 2024-25 figure from Services Australia rate tables.
+# Reference: https://www.servicesaustralia.gov.au/how-much-rent-assistance-you-can-get
+description: Rent Assistance minimum fortnightly rent threshold — single, no children (AUD)
+values:
+  2024-07-01:
+    value: 163.40
