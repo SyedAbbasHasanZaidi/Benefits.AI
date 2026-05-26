@@ -4,6 +4,12 @@ tier: federal
 agency: Services Australia
 apply_url: https://www.servicesaustralia.gov.au/family-tax-benefit-part-a
 delivery_channel: federal_direct
+eligibility_variable: ftb_a_eligible
+required_inputs:
+  - is_australian_resident
+  - number_of_children
+  - youngest_child_age
+  - annual_income
 plain_description: >
   A fortnightly payment to help families with the cost of raising children.
   The amount depends on your family income and the ages of your children.

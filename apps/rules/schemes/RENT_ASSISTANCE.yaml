@@ -4,6 +4,11 @@ tier: federal
 agency: Services Australia
 apply_url: https://www.servicesaustralia.gov.au/rent-assistance
 delivery_channel: federal_direct
+eligibility_variable: rent_assistance_eligible
+required_inputs:
+  - is_australian_resident
+  - tenure_type
+  - rent_paid_fortnightly
 plain_description: >
   Extra money for people who rent privately and already receive certain
   government payments. Paid automatically — no separate application needed
