@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import datetime
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ load_dotenv()
 from openfisca_au import AustraliaTaxBenefitSystem  # noqa: E402
 
 tbs: AustraliaTaxBenefitSystem | None = None
+_schemes_cache: list[dict[str, Any]] = []
 
 SCHEMES_DIR = Path(__file__).parent / "schemes"
 CURRENT_YEAR = str(datetime.date.today().year)
@@ -24,10 +26,12 @@ CURRENT_YEAR = str(datetime.date.today().year)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
-    global tbs
+    global tbs, _schemes_cache
     tbs = AustraliaTaxBenefitSystem()
+    _schemes_cache = _load_schemes()
     yield
     tbs = None
+    _schemes_cache = []
 
 
 app = FastAPI(
@@ -56,6 +60,10 @@ def _load_schemes() -> list[dict[str, Any]]:
         if isinstance(data, dict):
             schemes.append(data)
     return schemes
+
+
+def _get_schemes() -> list[dict[str, Any]]:
+    return _schemes_cache if _schemes_cache else _load_schemes()
 
 
 def _period_key(var_name: str) -> str:
@@ -105,7 +113,7 @@ def list_variables() -> dict[str, Any]:
 @app.get("/schemes", tags=["registry"])
 def list_schemes() -> dict[str, Any]:
     """Returns metadata for every codified scheme loaded from schemes/*.yaml."""
-    return {"schemes": _load_schemes()}
+    return {"schemes": _get_schemes()}
 
 
 # ── Eligibility calculation ───────────────────────────────────────────────────
@@ -133,7 +141,7 @@ def calculate(body: CalculateRequest) -> CalculateResponse:
     if tbs is None:
         raise HTTPException(503, detail="Tax-benefit system not initialised")
 
-    schemes = _load_schemes()
+    schemes = _get_schemes()
     provided_vars = set(body.variables.keys())
 
     # Build a single-person simulation from the provided inputs.
@@ -141,6 +149,12 @@ def calculate(body: CalculateRequest) -> CalculateResponse:
     for var_name, value in body.variables.items():
         if var_name in tbs.variables:
             person_input[var_name] = {_period_key(var_name): value}
+
+    unknown_vars = [v for v in body.variables if v not in tbs.variables]
+    if unknown_vars:
+        logging.getLogger(__name__).warning(
+            "calculate: unknown variable names ignored: %s", unknown_vars
+        )
 
     try:
         simulation = SimulationBuilder().build_from_entities(
@@ -156,6 +170,8 @@ def calculate(body: CalculateRequest) -> CalculateResponse:
 
     for scheme in schemes:
         scheme_id: str = scheme.get("id", "")
+        if not scheme_id:
+            continue
         eligibility_var: str | None = scheme.get("eligibility_variable")
         required_inputs: list[str] = scheme.get("required_inputs", [])
 
