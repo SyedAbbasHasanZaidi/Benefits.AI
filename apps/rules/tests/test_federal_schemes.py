@@ -69,6 +69,7 @@ class TestFtbA:
         assert "annual_income" in data["missing_variables"]
         assert "FTB_A" not in data["eligible"]
         assert "FTB_A" not in data["ineligible"]
+        assert data["traces"].get("FTB_A", {}).get("missing") is not None
 
 
 # ── Rent Assistance ───────────────────────────────────────────────────────────
@@ -107,3 +108,61 @@ class TestRentAssistance:
             "rent_paid_fortnightly": 600.0,
         })
         assert "RENT_ASSISTANCE" in data["ineligible"]
+
+
+# ── JobSeeker Payment ─────────────────────────────────────────────────────────
+
+class TestJobSeeker:
+    def test_eligible_unemployed_low_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 30,
+            "employment_status": "unemployed",
+            "annual_income": 10000.0,
+        })
+        assert "JOBSEEKER" in data["eligible"]
+
+    def test_eligible_part_time(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 28,
+            "employment_status": "part_time",
+            "annual_income": 15000.0,
+        })
+        assert "JOBSEEKER" in data["eligible"]
+
+    def test_ineligible_too_young(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 20,
+            "employment_status": "unemployed",
+            "annual_income": 0.0,
+        })
+        assert "JOBSEEKER" in data["ineligible"]
+
+    def test_ineligible_pension_age(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 68,
+            "employment_status": "unemployed",
+            "annual_income": 0.0,
+        })
+        assert "JOBSEEKER" in data["ineligible"]
+
+    def test_ineligible_income_too_high(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 35,
+            "employment_status": "part_time",
+            "annual_income": 70000.0,
+        })
+        assert "JOBSEEKER" in data["ineligible"]
+
+    def test_ineligible_fulltime_employed(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 35,
+            "employment_status": "full_time",
+            "annual_income": 50000.0,
+        })
+        assert "JOBSEEKER" in data["ineligible"]
