@@ -1,0 +1,15 @@
+id: NSW_SENIORS_CARD
+name: NSW Seniors Card
+tier: state
+agency: Service NSW
+apply_url: https://www.service.nsw.gov.au/transaction/apply-for-a-seniors-card
+delivery_channel: state_direct
+eligibility_variable: seniors_card_eligible
+required_inputs:
+  - state
+  - age
+  - hours_worked_per_week
+plain_description: >
+  A free card for NSW residents aged 60 and over who work no more than 20 hours
+  per week on average. Provides discounts at thousands of businesses and on
+  public transport. No income test.

@@ -122,3 +122,45 @@ class TestNswLifeSupportRebate:
             "uses_life_support_equipment": True,
         })
         assert "NSW_LIFE_SUPPORT_REBATE" in data["ineligible"]
+
+
+class TestNswSeniorsCard:
+    def test_eligible_senior_part_time(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 65,
+            "hours_worked_per_week": 10.0,
+        })
+        assert "NSW_SENIORS_CARD" in data["eligible"]
+
+    def test_eligible_senior_retired(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 70,
+            "hours_worked_per_week": 0.0,
+        })
+        assert "NSW_SENIORS_CARD" in data["eligible"]
+
+    def test_ineligible_too_young(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 55,
+            "hours_worked_per_week": 0.0,
+        })
+        assert "NSW_SENIORS_CARD" in data["ineligible"]
+
+    def test_ineligible_fulltime_work(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 62,
+            "hours_worked_per_week": 25.0,
+        })
+        assert "NSW_SENIORS_CARD" in data["ineligible"]
+
+    def test_ineligible_not_nsw(self, client):
+        data = post_calculate(client, {
+            "state": "VIC",
+            "age": 65,
+            "hours_worked_per_week": 0.0,
+        })
+        assert "NSW_SENIORS_CARD" in data["ineligible"]
