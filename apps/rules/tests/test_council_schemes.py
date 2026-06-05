@@ -77,7 +77,7 @@ class TestBlacktownPensionerRatesRebate:
 
 # ── Canterbury-Bankstown Pensioner Rates Rebate ───────────────────────────────
 
-class TestCanterburyBankstonPensionerRatesRebate:
+class TestCanterburyBankstownPensionerRatesRebate:
     SCHEME = "COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES_REBATE"
 
     def test_eligible_pensioner_owner(self, client):
@@ -177,7 +177,7 @@ class TestBlacktownRatesHardship:
 
 # ── Canterbury-Bankstown Rates Hardship ───────────────────────────────────────
 
-class TestCanterburyBankstonRatesHardship:
+class TestCanterburyBankstownRatesHardship:
     SCHEME = "COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP"
 
     def test_eligible_hardship_owner(self, client):
