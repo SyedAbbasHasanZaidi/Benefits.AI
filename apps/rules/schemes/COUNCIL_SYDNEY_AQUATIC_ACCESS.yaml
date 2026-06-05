@@ -1,0 +1,16 @@
+id: COUNCIL_SYDNEY_AQUATIC_ACCESS
+name: City of Sydney — Aquatic Centre Access Card
+tier: council
+agency: City of Sydney Council
+apply_url: https://www.cityofsydney.nsw.gov.au/facility-bookings-outdoor-events/apply-for-access-card
+delivery_channel: council_direct
+eligibility_variable: sydney_aquatic_access_eligible
+required_inputs:
+  - council_lga
+  - age
+  - annual_income
+  - number_of_children
+plain_description: >
+  Discounted entry to City of Sydney aquatic and fitness centres — $2 per swim
+  and $5.50 per gym session — for eligible concession card holders including
+  Pensioner Concession Card and Low Income Health Care Card holders.

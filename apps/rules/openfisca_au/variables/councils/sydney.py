@@ -31,3 +31,18 @@ class sydney_rates_hardship_eligible(Variable):
         hardship = person("has_financial_hardship", period)
         is_owner = person("tenure_type", period) == "owning"
         return is_sydney * hardship * is_owner
+
+
+class sydney_aquatic_access_eligible(Variable):
+    value_type = bool
+    entity = Person
+    definition_period = YEAR
+    label = "Eligible for City of Sydney Aquatic Centre Access Card"
+    reference = "https://www.cityofsydney.nsw.gov.au/facility-bookings-outdoor-events/apply-for-access-card"
+
+    def formula(person, period, parameters):  # noqa: N805
+        is_sydney = person("council_lga", period) == "SYDNEY"
+        has_pcc = person("has_pensioner_concession_card", period)
+        has_lihcc = person("low_income_health_care_card_eligible", period)
+        has_qualifying_card = has_pcc | has_lihcc
+        return is_sydney * has_qualifying_card
