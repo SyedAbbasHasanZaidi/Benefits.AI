@@ -1,0 +1,15 @@
+id: NSW_GAS_REBATE
+name: NSW Gas Rebate
+tier: state
+agency: Service NSW
+apply_url: https://www.service.nsw.gov.au/transaction/apply-for-gas-rebate
+delivery_channel: state_direct
+eligibility_variable: gas_rebate_eligible
+required_inputs:
+  - state
+  - age
+  - annual_income
+  - number_of_children
+plain_description: >
+  An annual rebate on natural gas bills for eligible NSW concession card holders,
+  including Pensioner Concession Card and Low Income Health Care Card holders.

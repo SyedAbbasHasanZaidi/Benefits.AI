@@ -1,0 +1,16 @@
+id: NSW_LOW_INCOME_HOUSEHOLD_REBATE
+name: NSW Low Income Household Rebate
+tier: state
+agency: Service NSW
+apply_url: https://www.service.nsw.gov.au/transaction/apply-for-low-income-household-rebate
+delivery_channel: state_direct
+eligibility_variable: low_income_household_rebate_eligible
+required_inputs:
+  - state
+  - annual_income
+  - age
+  - number_of_children
+plain_description: >
+  An annual rebate of up to $285 off electricity bills for eligible low-income
+  NSW households. Available to holders of the Pensioner Concession Card,
+  Health Care Card, or Commonwealth Seniors Health Card.

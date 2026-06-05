@@ -1,0 +1,15 @@
+id: LIHCC
+name: Low Income Health Care Card
+tier: federal
+agency: Services Australia
+apply_url: https://www.servicesaustralia.gov.au/low-income-health-care-card
+delivery_channel: federal_direct
+eligibility_variable: low_income_health_care_card_eligible
+required_inputs:
+  - is_australian_resident
+  - annual_income
+  - number_of_children
+plain_description: >
+  A concession card for low-income earners who do not receive Centrelink
+  payments. Provides discounts on medicines, bulk billing, and council rates.
+  Based on an income test only — no assets test.

@@ -1,10 +1,16 @@
 from contextlib import asynccontextmanager
-from typing import Any
+import datetime
+import logging
 import os
+from pathlib import Path
+from typing import Any
 
+import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from openfisca_core.periods import ETERNITY
+from openfisca_core.simulation_builder import SimulationBuilder
 from pydantic import BaseModel
 
 load_dotenv()
@@ -12,14 +18,20 @@ load_dotenv()
 from openfisca_au import AustraliaTaxBenefitSystem  # noqa: E402
 
 tbs: AustraliaTaxBenefitSystem | None = None
+_schemes_cache: list[dict[str, Any]] = []
+
+SCHEMES_DIR = Path(__file__).parent / "schemes"
+CURRENT_YEAR = str(datetime.date.today().year)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
-    global tbs
+    global tbs, _schemes_cache
     tbs = AustraliaTaxBenefitSystem()
+    _schemes_cache = _load_schemes()
     yield
     tbs = None
+    _schemes_cache = []
 
 
 app = FastAPI(
@@ -37,6 +49,33 @@ app.add_middleware(
 )
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _load_schemes() -> list[dict[str, Any]]:
+    schemes: list[dict[str, Any]] = []
+    if not SCHEMES_DIR.is_dir():
+        return schemes
+    for path in sorted(SCHEMES_DIR.glob("*.yaml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            schemes.append(data)
+    return schemes
+
+
+def _get_schemes() -> list[dict[str, Any]]:
+    return _schemes_cache if _schemes_cache else _load_schemes()
+
+
+def _period_key(var_name: str) -> str:
+    """Return 'ETERNITY' for ETERNITY-period variables, else the current year string."""
+    if tbs is None:
+        return CURRENT_YEAR
+    var = tbs.variables.get(var_name)
+    if var is not None and var.definition_period == ETERNITY:
+        return "ETERNITY"
+    return CURRENT_YEAR
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/healthz", tags=["ops"])
@@ -52,11 +91,7 @@ def healthz() -> dict[str, Any]:
 
 @app.get("/variables", tags=["registry"])
 def list_variables() -> dict[str, Any]:
-    """
-    Returns the full variable registry from OpenFisca.
-    Used by scripts/build_registry.ts to generate the TypeScript enum
-    that locks the LLM's set_variable tool — preventing hallucinated names.
-    """
+    """Returns the full variable registry from OpenFisca."""
     if tbs is None:
         raise HTTPException(503, detail="Tax-benefit system not initialised")
     return {
@@ -77,11 +112,8 @@ def list_variables() -> dict[str, Any]:
 
 @app.get("/schemes", tags=["registry"])
 def list_schemes() -> dict[str, Any]:
-    """
-    Returns metadata for every codified scheme (name, tier, delivery_channel,
-    agency, apply_url). Loaded from apps/rules/schemes/*.yaml in Milestone 2.
-    """
-    return {"schemes": []}
+    """Returns metadata for every codified scheme loaded from schemes/*.yaml."""
+    return {"schemes": _get_schemes()}
 
 
 # ── Eligibility calculation ───────────────────────────────────────────────────
@@ -102,18 +134,76 @@ def calculate(body: CalculateRequest) -> CalculateResponse:
     """
     Evaluates all codified schemes against the supplied variable values.
 
-    Returns:
-      eligible          — scheme IDs the person likely qualifies for
-      ineligible        — scheme IDs they don't qualify for (with reasons in traces)
-      missing_variables — variables the engine still needs to reach a verdict
-      traces            — rule trace per scheme for the explanation layer
-
-    Full implementation in Milestone 2. Stub returns typed response so the
-    TypeScript client can be generated against the real contract now.
+    missing_variables lists inputs needed by at least one scheme that were
+    not provided — the orchestrator uses this list to ask the LLM to collect
+    more information from the user.
     """
+    if tbs is None:
+        raise HTTPException(503, detail="Tax-benefit system not initialised")
+
+    schemes = _get_schemes()
+    provided_vars = set(body.variables.keys())
+
+    # Build a single-person simulation from the provided inputs.
+    person_input: dict[str, Any] = {}
+    for var_name, value in body.variables.items():
+        if var_name in tbs.variables:
+            person_input[var_name] = {_period_key(var_name): value}
+
+    unknown_vars = [v for v in body.variables if v not in tbs.variables]
+    if unknown_vars:
+        logging.getLogger(__name__).warning(
+            "calculate: unknown variable names ignored: %s", unknown_vars
+        )
+
+    try:
+        simulation = SimulationBuilder().build_from_entities(
+            tbs, {"persons": {"person1": person_input}}
+        )
+    except Exception as exc:
+        raise HTTPException(422, detail=f"Simulation build failed: {exc}") from exc
+
+    eligible: list[str] = []
+    ineligible: list[str] = []
+    all_missing: set[str] = set()
+    traces: dict[str, Any] = {}
+
+    for scheme in schemes:
+        scheme_id: str = scheme.get("id", "")
+        if not scheme_id:
+            continue
+        eligibility_var: str | None = scheme.get("eligibility_variable")
+        required_inputs: list[str] = scheme.get("required_inputs", [])
+
+        if not eligibility_var:
+            continue
+
+        scheme_missing = [v for v in required_inputs if v not in provided_vars]
+        if scheme_missing:
+            all_missing.update(scheme_missing)
+            traces[scheme_id] = {"missing": scheme_missing}
+            continue
+
+        try:
+            result = simulation.calculate(eligibility_var, CURRENT_YEAR)
+            is_eligible = bool(result[0])
+        except Exception as exc:
+            traces[scheme_id] = {"error": str(exc)}
+            continue
+
+        if is_eligible:
+            eligible.append(scheme_id)
+        else:
+            ineligible.append(scheme_id)
+
+        traces[scheme_id] = {
+            "result": is_eligible,
+            "inputs": {k: body.variables[k] for k in required_inputs if k in body.variables},
+        }
+
     return CalculateResponse(
-        eligible=[],
-        ineligible=[],
-        missing_variables=list(body.variables.keys()),
-        traces={},
+        eligible=eligible,
+        ineligible=ineligible,
+        missing_variables=sorted(all_missing),
+        traces=traces,
     )

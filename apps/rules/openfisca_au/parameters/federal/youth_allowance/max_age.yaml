@@ -1,0 +1,4 @@
+description: Maximum age (exclusive) for Youth Allowance (years)
+values:
+  2024-07-01:
+    value: 25
