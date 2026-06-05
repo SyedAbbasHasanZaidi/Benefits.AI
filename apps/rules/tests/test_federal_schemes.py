@@ -282,3 +282,43 @@ class TestCarerAllowance:
             "annual_income": 260000.0,
         })
         assert "CARER_ALLOWANCE" in data["ineligible"]
+
+
+# ── Youth Allowance ───────────────────────────────────────────────────────────
+
+class TestYouthAllowance:
+    def test_eligible_young_unemployed(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 20,
+            "employment_status": "unemployed",
+            "annual_income": 8000.0,
+        })
+        assert "YOUTH_ALLOWANCE" in data["eligible"]
+
+    def test_eligible_student(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 22,
+            "employment_status": "student",
+            "annual_income": 12000.0,
+        })
+        assert "YOUTH_ALLOWANCE" in data["eligible"]
+
+    def test_ineligible_over_24(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 25,
+            "employment_status": "unemployed",
+            "annual_income": 5000.0,
+        })
+        assert "YOUTH_ALLOWANCE" in data["ineligible"]
+
+    def test_ineligible_fulltime_work(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 21,
+            "employment_status": "full_time",
+            "annual_income": 50000.0,
+        })
+        assert "YOUTH_ALLOWANCE" in data["ineligible"]

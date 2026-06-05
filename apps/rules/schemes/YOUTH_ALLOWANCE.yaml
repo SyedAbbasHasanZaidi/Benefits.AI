@@ -1,0 +1,16 @@
+id: YOUTH_ALLOWANCE
+name: Youth Allowance
+tier: federal
+agency: Services Australia
+apply_url: https://www.servicesaustralia.gov.au/youth-allowance
+delivery_channel: federal_direct
+eligibility_variable: youth_allowance_eligible
+required_inputs:
+  - is_australian_resident
+  - age
+  - employment_status
+  - annual_income
+plain_description: >
+  A fortnightly payment for young Australians aged 16–24 who are studying,
+  looking for work, or doing an Australian Apprenticeship. Subject to income
+  and parental means tests.
