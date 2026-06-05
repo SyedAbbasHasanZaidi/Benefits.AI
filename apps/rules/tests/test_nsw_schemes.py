@@ -99,3 +99,26 @@ class TestNswGasRebate:
             "number_of_children": 0,
         })
         assert "NSW_GAS_REBATE" in data["ineligible"]
+
+
+class TestNswLifeSupportRebate:
+    def test_eligible_life_support_nsw(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "uses_life_support_equipment": True,
+        })
+        assert "NSW_LIFE_SUPPORT_REBATE" in data["eligible"]
+
+    def test_ineligible_no_equipment(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "uses_life_support_equipment": False,
+        })
+        assert "NSW_LIFE_SUPPORT_REBATE" in data["ineligible"]
+
+    def test_ineligible_not_nsw(self, client):
+        data = post_calculate(client, {
+            "state": "QLD",
+            "uses_life_support_equipment": True,
+        })
+        assert "NSW_LIFE_SUPPORT_REBATE" in data["ineligible"]
