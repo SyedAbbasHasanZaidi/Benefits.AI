@@ -170,6 +170,22 @@ class TestBlacktownRatesHardship:
         data = post_calculate(client, hardship_owner_payload("BLACKTOWN"))
         assert self.SCHEME in data["eligible"]
 
+    def test_ineligible_no_hardship(self, client):
+        data = post_calculate(client, {
+            "council_lga": "BLACKTOWN",
+            "tenure_type": "owning",
+            "has_financial_hardship": False,
+        })
+        assert self.SCHEME in data["ineligible"]
+
+    def test_ineligible_renter(self, client):
+        data = post_calculate(client, {
+            "council_lga": "BLACKTOWN",
+            "tenure_type": "renting",
+            "has_financial_hardship": True,
+        })
+        assert self.SCHEME in data["ineligible"]
+
     def test_ineligible_wrong_lga(self, client):
         data = post_calculate(client, hardship_owner_payload("SYDNEY"))
         assert self.SCHEME in data["ineligible"]
@@ -183,6 +199,22 @@ class TestCanterburyBankstownRatesHardship:
     def test_eligible_hardship_owner(self, client):
         data = post_calculate(client, hardship_owner_payload("CANTERBURY_BANKSTOWN"))
         assert self.SCHEME in data["eligible"]
+
+    def test_ineligible_no_hardship(self, client):
+        data = post_calculate(client, {
+            "council_lga": "CANTERBURY_BANKSTOWN",
+            "tenure_type": "owning",
+            "has_financial_hardship": False,
+        })
+        assert self.SCHEME in data["ineligible"]
+
+    def test_ineligible_renter(self, client):
+        data = post_calculate(client, {
+            "council_lga": "CANTERBURY_BANKSTOWN",
+            "tenure_type": "renting",
+            "has_financial_hardship": True,
+        })
+        assert self.SCHEME in data["ineligible"]
 
     def test_ineligible_wrong_lga(self, client):
         data = post_calculate(client, hardship_owner_payload("SYDNEY"))
@@ -198,6 +230,22 @@ class TestCentralCoastRatesHardship:
         data = post_calculate(client, hardship_owner_payload("CENTRAL_COAST"))
         assert self.SCHEME in data["eligible"]
 
+    def test_ineligible_no_hardship(self, client):
+        data = post_calculate(client, {
+            "council_lga": "CENTRAL_COAST",
+            "tenure_type": "owning",
+            "has_financial_hardship": False,
+        })
+        assert self.SCHEME in data["ineligible"]
+
+    def test_ineligible_renter(self, client):
+        data = post_calculate(client, {
+            "council_lga": "CENTRAL_COAST",
+            "tenure_type": "renting",
+            "has_financial_hardship": True,
+        })
+        assert self.SCHEME in data["ineligible"]
+
     def test_ineligible_wrong_lga(self, client):
         data = post_calculate(client, hardship_owner_payload("SYDNEY"))
         assert self.SCHEME in data["ineligible"]
@@ -211,6 +259,22 @@ class TestNorthernBeachesRatesHardship:
     def test_eligible_hardship_owner(self, client):
         data = post_calculate(client, hardship_owner_payload("NORTHERN_BEACHES"))
         assert self.SCHEME in data["eligible"]
+
+    def test_ineligible_no_hardship(self, client):
+        data = post_calculate(client, {
+            "council_lga": "NORTHERN_BEACHES",
+            "tenure_type": "owning",
+            "has_financial_hardship": False,
+        })
+        assert self.SCHEME in data["ineligible"]
+
+    def test_ineligible_renter(self, client):
+        data = post_calculate(client, {
+            "council_lga": "NORTHERN_BEACHES",
+            "tenure_type": "renting",
+            "has_financial_hardship": True,
+        })
+        assert self.SCHEME in data["ineligible"]
 
     def test_ineligible_wrong_lga(self, client):
         data = post_calculate(client, hardship_owner_payload("SYDNEY"))
@@ -229,6 +293,7 @@ class TestSydneyAquaticAccess:
             "age": 70,
             "annual_income": 25000.0,
             "number_of_children": 0,
+            "is_australian_resident": True,
         })
         assert self.SCHEME in data["eligible"]
 
@@ -239,6 +304,7 @@ class TestSydneyAquaticAccess:
             "age": 40,
             "annual_income": 15000.0,
             "number_of_children": 0,
+            "is_australian_resident": True,
         })
         assert self.SCHEME in data["eligible"]
 
@@ -248,6 +314,7 @@ class TestSydneyAquaticAccess:
             "age": 70,
             "annual_income": 25000.0,
             "number_of_children": 0,
+            "is_australian_resident": True,
         })
         assert self.SCHEME in data["ineligible"]
 
@@ -258,5 +325,6 @@ class TestSydneyAquaticAccess:
             "age": 40,
             "annual_income": 80000.0,
             "number_of_children": 0,
+            "is_australian_resident": True,
         })
         assert self.SCHEME in data["ineligible"]
