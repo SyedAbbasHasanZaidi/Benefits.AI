@@ -358,3 +358,68 @@ class TestLihcc:
             "number_of_children": 2,
         })
         assert "LIHCC" in data["ineligible"]
+
+
+# ── FTB-B ─────────────────────────────────────────────────────────────────────
+
+class TestFtbB:
+    def test_eligible_single_parent(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 1,
+            "youngest_child_age": 6,
+            "annual_income": 60000.0,
+        })
+        assert "FTB_B" in data["eligible"]
+
+    def test_ineligible_income_over_100k(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 1,
+            "youngest_child_age": 4,
+            "annual_income": 110000.0,
+        })
+        assert "FTB_B" in data["ineligible"]
+
+    def test_ineligible_no_children(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 0,
+            "youngest_child_age": 0,
+            "annual_income": 50000.0,
+        })
+        assert "FTB_B" in data["ineligible"]
+
+
+# ── Parenting Payment ─────────────────────────────────────────────────────────
+
+class TestParentingPayment:
+    def test_eligible_single_young_child(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 1,
+            "youngest_child_age": 5,
+            "has_partner": False,
+            "annual_income": 30000.0,
+        })
+        assert "PARENTING_PAYMENT" in data["eligible"]
+
+    def test_ineligible_child_too_old_single(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 1,
+            "youngest_child_age": 9,
+            "has_partner": False,
+            "annual_income": 20000.0,
+        })
+        assert "PARENTING_PAYMENT" in data["ineligible"]
+
+    def test_ineligible_partnered_child_too_old(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "number_of_children": 1,
+            "youngest_child_age": 7,
+            "has_partner": True,
+            "annual_income": 30000.0,
+        })
+        assert "PARENTING_PAYMENT" in data["ineligible"]

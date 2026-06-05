@@ -1,0 +1,16 @@
+id: PARENTING_PAYMENT
+name: Parenting Payment
+tier: federal
+agency: Services Australia
+apply_url: https://www.servicesaustralia.gov.au/parenting-payment
+delivery_channel: federal_direct
+eligibility_variable: parenting_payment_eligible
+required_inputs:
+  - is_australian_resident
+  - number_of_children
+  - youngest_child_age
+  - has_partner
+  - annual_income
+plain_description: >
+  A fortnightly payment for parents or guardians of young children. For single
+  parents with a child under 8, or partnered parents with a child under 6.
