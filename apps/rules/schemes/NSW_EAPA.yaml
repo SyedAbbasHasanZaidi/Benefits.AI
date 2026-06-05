@@ -1,0 +1,14 @@
+id: NSW_EAPA
+name: Energy Accounts Payment Assistance (EAPA)
+tier: state
+agency: Service NSW
+apply_url: https://www.service.nsw.gov.au/transaction/apply-for-energy-accounts-payment-assistance-eapa
+delivery_channel: state_direct
+eligibility_variable: eapa_eligible
+required_inputs:
+  - state
+  - has_financial_hardship
+plain_description: >
+  Crisis vouchers (up to $1,600/year) to help NSW residents who are struggling
+  to pay energy bills. Available through community service organisations —
+  no income test applies.

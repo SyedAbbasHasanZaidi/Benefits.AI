@@ -48,3 +48,26 @@ class TestNswLowIncomeRebate:
             "annual_income": 80000.0,
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["ineligible"]
+
+
+class TestNswEapa:
+    def test_eligible_nsw_hardship(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "has_financial_hardship": True,
+        })
+        assert "NSW_EAPA" in data["eligible"]
+
+    def test_ineligible_not_nsw(self, client):
+        data = post_calculate(client, {
+            "state": "QLD",
+            "has_financial_hardship": True,
+        })
+        assert "NSW_EAPA" in data["ineligible"]
+
+    def test_ineligible_no_hardship(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "has_financial_hardship": False,
+        })
+        assert "NSW_EAPA" in data["ineligible"]
