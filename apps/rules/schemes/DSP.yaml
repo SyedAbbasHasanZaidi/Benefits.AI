@@ -1,0 +1,16 @@
+id: DSP
+name: Disability Support Pension
+tier: federal
+agency: Services Australia
+apply_url: https://www.servicesaustralia.gov.au/disability-support-pension
+delivery_channel: federal_direct
+eligibility_variable: dsp_eligible
+required_inputs:
+  - is_australian_resident
+  - age
+  - has_disability
+  - annual_income
+plain_description: >
+  A fortnightly payment for people with a permanent physical, intellectual,
+  or psychiatric condition that prevents them from working. Subject to
+  medical assessment and income and assets tests.

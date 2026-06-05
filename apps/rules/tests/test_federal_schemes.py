@@ -194,3 +194,43 @@ class TestAgePension:
             "annual_income": 80000.0,
         })
         assert "AGE_PENSION" in data["ineligible"]
+
+
+# ── Disability Support Pension ────────────────────────────────────────────────
+
+class TestDsp:
+    def test_eligible_person_with_disability(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 35,
+            "has_disability": True,
+            "annual_income": 10000.0,
+        })
+        assert "DSP" in data["eligible"]
+
+    def test_ineligible_no_disability(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 35,
+            "has_disability": False,
+            "annual_income": 10000.0,
+        })
+        assert "DSP" in data["ineligible"]
+
+    def test_ineligible_pension_age(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 68,
+            "has_disability": True,
+            "annual_income": 10000.0,
+        })
+        assert "DSP" in data["ineligible"]
+
+    def test_ineligible_high_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 40,
+            "has_disability": True,
+            "annual_income": 80000.0,
+        })
+        assert "DSP" in data["ineligible"]
