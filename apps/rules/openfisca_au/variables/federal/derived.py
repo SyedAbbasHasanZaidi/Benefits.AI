@@ -34,3 +34,22 @@ class federal_has_qualifying_child(Variable):
         has_children = person("number_of_children", period) >= 1
         child_is_young = person("youngest_child_age", period) < 16
         return has_children * child_is_young
+
+
+class has_pensioner_concession_card(Variable):
+    value_type = bool
+    entity = Person
+    definition_period = YEAR
+    label = "Holds a Pensioner Concession Card (issued automatically with qualifying payments)"
+    reference = (
+        "PCC is automatically issued with: Age Pension, DSP, Carer Payment. "
+        "MVP: derived from federal eligibility variables."
+    )
+    default_value = False
+
+    def formula(person, period, parameters):  # noqa: N805
+        return (
+            person("age_pension_eligible", period)
+            | person("dsp_eligible", period)
+            | person("carer_payment_eligible", period)
+        )
