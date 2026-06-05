@@ -166,3 +166,31 @@ class TestJobSeeker:
             "annual_income": 50000.0,
         })
         assert "JOBSEEKER" in data["ineligible"]
+
+
+# ── Age Pension ───────────────────────────────────────────────────────────────
+
+class TestAgePension:
+    def test_eligible_retiree(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 70,
+            "annual_income": 20000.0,
+        })
+        assert "AGE_PENSION" in data["eligible"]
+
+    def test_ineligible_too_young(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 65,
+            "annual_income": 0.0,
+        })
+        assert "AGE_PENSION" in data["ineligible"]
+
+    def test_ineligible_income_too_high(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "age": 72,
+            "annual_income": 80000.0,
+        })
+        assert "AGE_PENSION" in data["ineligible"]
