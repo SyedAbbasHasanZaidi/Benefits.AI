@@ -234,3 +234,51 @@ class TestDsp:
             "annual_income": 80000.0,
         })
         assert "DSP" in data["ineligible"]
+
+
+# ── Carer Payment ─────────────────────────────────────────────────────────────
+
+class TestCarerPayment:
+    def test_eligible_carer_low_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "is_carer": True,
+            "annual_income": 20000.0,
+        })
+        assert "CARER_PAYMENT" in data["eligible"]
+
+    def test_ineligible_not_carer(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "is_carer": False,
+            "annual_income": 20000.0,
+        })
+        assert "CARER_PAYMENT" in data["ineligible"]
+
+    def test_ineligible_high_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "is_carer": True,
+            "annual_income": 90000.0,
+        })
+        assert "CARER_PAYMENT" in data["ineligible"]
+
+
+# ── Carer Allowance ───────────────────────────────────────────────────────────
+
+class TestCarerAllowance:
+    def test_eligible_carer(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "is_carer": True,
+            "annual_income": 100000.0,
+        })
+        assert "CARER_ALLOWANCE" in data["eligible"]
+
+    def test_ineligible_income_over_250k(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "is_carer": True,
+            "annual_income": 260000.0,
+        })
+        assert "CARER_ALLOWANCE" in data["ineligible"]
