@@ -1,0 +1,14 @@
+id: COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP
+name: Northern Beaches Council — Rates Hardship Assistance
+tier: council
+agency: Northern Beaches Council
+apply_url: https://www.northernbeaches.nsw.gov.au/council/rates-and-fees
+delivery_channel: council_direct
+eligibility_variable: northern_beaches_rates_hardship_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - has_financial_hardship
+plain_description: >
+  Financial assistance for Northern Beaches Council ratepayers in genuine
+  financial hardship, including payment plans and interest relief.

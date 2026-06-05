@@ -17,3 +17,17 @@ class sydney_pensioner_rates_rebate_eligible(Variable):
         has_pcc = person("has_pensioner_concession_card", period)
         is_owner = person("tenure_type", period) == "owning"
         return is_sydney * has_pcc * is_owner
+
+
+class sydney_rates_hardship_eligible(Variable):
+    value_type = bool
+    entity = Person
+    definition_period = YEAR
+    label = "Eligible for City of Sydney Rates Hardship Assistance"
+    reference = "https://www.cityofsydney.nsw.gov.au/rates"
+
+    def formula(person, period, parameters):  # noqa: N805
+        is_sydney = person("council_lga", period) == "SYDNEY"
+        hardship = person("has_financial_hardship", period)
+        is_owner = person("tenure_type", period) == "owning"
+        return is_sydney * hardship * is_owner

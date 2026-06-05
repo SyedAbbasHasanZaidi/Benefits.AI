@@ -1,0 +1,15 @@
+id: COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP
+name: Canterbury-Bankstown Council — Rates Hardship Assistance
+tier: council
+agency: City of Canterbury Bankstown
+apply_url: https://www.cbcity.nsw.gov.au/residents/rates/rates-hardship-assistance
+delivery_channel: council_direct
+eligibility_variable: canterbury_bankstown_rates_hardship_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - has_financial_hardship
+plain_description: >
+  Financial assistance for Canterbury-Bankstown ratepayers in hardship,
+  including deferral of rates for up to 19 years under a pensioner agreement.
+  No income test — based on demonstrated hardship.

@@ -98,3 +98,7 @@ Benefits.AI/
 - **Citation-or-refuse** — every explanation sentence carries a `[src:chunk_id]` citation; uncited sentences are stripped
 - **`delivery_channel`** — field on every scheme controlling hand-off copy; values: `federal_direct`, `federal_via_retailer`, `federal_via_state`, `state_direct`, `state_via_community`, `council_direct`
 - **Cross-tier stacking** — NSW/council OpenFisca formulas reference federal variables (e.g. `has_pensioner_concession_card`) as preconditions
+
+## Commit conventions
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `perf:`, `ci:`
+- **Never add `Co-Authored-By: Claude` or any Claude/AI co-author lines to git commits.**

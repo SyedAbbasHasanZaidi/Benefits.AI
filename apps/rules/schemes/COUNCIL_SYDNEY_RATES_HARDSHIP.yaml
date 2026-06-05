@@ -1,0 +1,15 @@
+id: COUNCIL_SYDNEY_RATES_HARDSHIP
+name: City of Sydney — Rates Hardship Assistance
+tier: council
+agency: City of Sydney Council
+apply_url: https://www.cityofsydney.nsw.gov.au/rates
+delivery_channel: council_direct
+eligibility_variable: sydney_rates_hardship_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - has_financial_hardship
+plain_description: >
+  Financial assistance for City of Sydney ratepayers experiencing hardship,
+  including payment plans, interest waivers, and rate deferrals. No income
+  test — based on demonstrated financial hardship.
