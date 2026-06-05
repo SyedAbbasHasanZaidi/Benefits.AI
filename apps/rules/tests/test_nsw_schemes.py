@@ -71,3 +71,31 @@ class TestNswEapa:
             "has_financial_hardship": False,
         })
         assert "NSW_EAPA" in data["ineligible"]
+
+
+class TestNswGasRebate:
+    def test_eligible_pensioner_nsw(self, client):
+        """Age Pension recipient in NSW → has_pensioner_concession_card → eligible."""
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 70,
+            "annual_income": 20000.0,
+        })
+        assert "NSW_GAS_REBATE" in data["eligible"]
+
+    def test_ineligible_not_nsw(self, client):
+        data = post_calculate(client, {
+            "state": "VIC",
+            "age": 70,
+            "annual_income": 20000.0,
+        })
+        assert "NSW_GAS_REBATE" in data["ineligible"]
+
+    def test_ineligible_no_card_high_income(self, client):
+        data = post_calculate(client, {
+            "state": "NSW",
+            "age": 45,
+            "annual_income": 80000.0,
+            "number_of_children": 0,
+        })
+        assert "NSW_GAS_REBATE" in data["ineligible"]
