@@ -8,6 +8,7 @@ eligibility_variable: seniors_card_eligible
 required_inputs:
   - state
   - age
+  - hours_worked_per_week
 plain_description: >
   A free card for NSW residents aged 60 and over who work no more than 20 hours
   per week on average. Provides discounts at thousands of businesses and on

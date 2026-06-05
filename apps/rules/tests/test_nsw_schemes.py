@@ -22,6 +22,8 @@ class TestNswLowIncomeRebate:
         data = post_calculate(client, {
             "state": "NSW",
             "annual_income": 35000.0,
+            "age": 40,
+            "number_of_children": 0,
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["eligible"]
 
@@ -31,6 +33,7 @@ class TestNswLowIncomeRebate:
             "state": "NSW",
             "annual_income": 60000.0,
             "age": 70,
+            "number_of_children": 0,
             # age >= 67, income <= 65281 → age_pension_eligible → has_pensioner_concession_card
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["eligible"]
@@ -39,6 +42,8 @@ class TestNswLowIncomeRebate:
         data = post_calculate(client, {
             "state": "VIC",
             "annual_income": 20000.0,
+            "age": 40,
+            "number_of_children": 0,
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["ineligible"]
 
@@ -46,6 +51,8 @@ class TestNswLowIncomeRebate:
         data = post_calculate(client, {
             "state": "NSW",
             "annual_income": 80000.0,
+            "age": 45,
+            "number_of_children": 0,
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["ineligible"]
 
@@ -80,6 +87,7 @@ class TestNswGasRebate:
             "state": "NSW",
             "age": 70,
             "annual_income": 20000.0,
+            "number_of_children": 0,
         })
         assert "NSW_GAS_REBATE" in data["eligible"]
 
@@ -88,6 +96,7 @@ class TestNswGasRebate:
             "state": "VIC",
             "age": 70,
             "annual_income": 20000.0,
+            "number_of_children": 0,
         })
         assert "NSW_GAS_REBATE" in data["ineligible"]
 

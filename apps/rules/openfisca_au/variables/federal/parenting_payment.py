@@ -26,6 +26,7 @@ class parenting_payment_eligible(Variable):
         child_age_ok = single_child_ok | partnered_child_ok
 
         income = person("annual_income", period)
+        # MVP simplification: uses single threshold for both single and partnered parents
         threshold = parameters(period).federal.parenting_payment.income_threshold_single_annual
         income_ok = income <= threshold
 
