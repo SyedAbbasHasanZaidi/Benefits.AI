@@ -322,3 +322,39 @@ class TestYouthAllowance:
             "annual_income": 50000.0,
         })
         assert "YOUTH_ALLOWANCE" in data["ineligible"]
+
+
+# ── Low Income Health Care Card ───────────────────────────────────────────────
+
+class TestLihcc:
+    def test_eligible_single_low_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "annual_income": 15000.0,
+            "number_of_children": 0,
+        })
+        assert "LIHCC" in data["eligible"]
+
+    def test_eligible_family_low_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "annual_income": 28000.0,
+            "number_of_children": 2,
+        })
+        assert "LIHCC" in data["eligible"]
+
+    def test_ineligible_single_high_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "annual_income": 25000.0,
+            "number_of_children": 0,
+        })
+        assert "LIHCC" in data["ineligible"]
+
+    def test_ineligible_family_high_income(self, client):
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "annual_income": 40000.0,
+            "number_of_children": 2,
+        })
+        assert "LIHCC" in data["ineligible"]
