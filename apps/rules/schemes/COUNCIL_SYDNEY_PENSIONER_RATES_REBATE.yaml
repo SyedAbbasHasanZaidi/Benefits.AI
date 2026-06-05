@@ -1,0 +1,16 @@
+id: COUNCIL_SYDNEY_PENSIONER_RATES_REBATE
+name: City of Sydney — Pensioner Rates Rebate
+tier: council
+agency: City of Sydney Council
+apply_url: https://www.cityofsydney.nsw.gov.au/rates/apply-pensioner-rebate-rates
+delivery_channel: council_direct
+eligibility_variable: sydney_pensioner_rates_rebate_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - age
+  - annual_income
+plain_description: >
+  Up to $250 off your annual council rates for eligible pensioners who own
+  and occupy their home in the City of Sydney. Applies automatically to
+  your rates notice once registered.

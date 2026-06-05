@@ -1,0 +1,16 @@
+id: COUNCIL_CENTRAL_COAST_PENSIONER_RATES_REBATE
+name: Central Coast Council — Pensioner Rates Rebate
+tier: council
+agency: Central Coast Council
+apply_url: https://www.centralcoast.nsw.gov.au/council/forms-and-publications/form/application-council-pensioner-concession-rates-and-charges
+delivery_channel: council_direct
+eligibility_variable: central_coast_pensioner_rates_rebate_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - age
+  - annual_income
+plain_description: >
+  Up to $250 off your annual council rates and domestic waste charges for
+  eligible pensioners who own and occupy their home in the Central Coast
+  Council area.

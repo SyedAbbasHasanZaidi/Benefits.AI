@@ -1,0 +1,15 @@
+id: COUNCIL_BLACKTOWN_PENSIONER_RATES_REBATE
+name: Blacktown City Council — Pensioner Rates Rebate
+tier: council
+agency: Blacktown City Council
+apply_url: https://www.blacktown.nsw.gov.au/About-Council/Your-rates/Pensioner-rebates
+delivery_channel: council_direct
+eligibility_variable: blacktown_pensioner_rates_rebate_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - age
+  - annual_income
+plain_description: >
+  Up to $250 off your annual council rates for eligible pensioners who own
+  and occupy their home in the Blacktown City Council area.
