@@ -1,0 +1,14 @@
+id: COUNCIL_BLACKTOWN_RATES_HARDSHIP
+name: Blacktown City Council — Rates Hardship Assistance
+tier: council
+agency: Blacktown City Council
+apply_url: https://www.blacktown.nsw.gov.au/About-Council/Your-rates
+delivery_channel: council_direct
+eligibility_variable: blacktown_rates_hardship_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - has_financial_hardship
+plain_description: >
+  Financial assistance for Blacktown City Council ratepayers experiencing
+  hardship, including payment plans and interest relief. No income test.

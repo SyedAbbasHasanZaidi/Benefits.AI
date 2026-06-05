@@ -1,0 +1,14 @@
+id: COUNCIL_CENTRAL_COAST_RATES_HARDSHIP
+name: Central Coast Council — Rates Hardship Assistance
+tier: council
+agency: Central Coast Council
+apply_url: https://www.centralcoast.nsw.gov.au/residents/property/pay-rates-and-water-bills/rebates-and-hardship-assistance
+delivery_channel: council_direct
+eligibility_variable: central_coast_rates_hardship_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - has_financial_hardship
+plain_description: >
+  Financial assistance for Central Coast Council ratepayers experiencing
+  hardship, including alternative payment plans and interest waivers.

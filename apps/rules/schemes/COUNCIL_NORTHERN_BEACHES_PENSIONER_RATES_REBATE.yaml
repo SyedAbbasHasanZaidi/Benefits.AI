@@ -1,0 +1,15 @@
+id: COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES_REBATE
+name: Northern Beaches Council — Pensioner Rates Rebate
+tier: council
+agency: Northern Beaches Council
+apply_url: https://www.northernbeaches.nsw.gov.au/council/rates-and-council-fees/pensioner-concession-information
+delivery_channel: council_direct
+eligibility_variable: northern_beaches_pensioner_rates_rebate_eligible
+required_inputs:
+  - council_lga
+  - tenure_type
+  - age
+  - annual_income
+plain_description: >
+  Up to $250 off your annual council rates for eligible pensioners who own
+  and occupy their home in the Northern Beaches Council area.
