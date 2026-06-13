@@ -1,6 +1,9 @@
-import type { LlmMessage } from '@/lib/llm/LlmProvider'
+import type { LlmMessage, LlmProvider } from '@/lib/llm/LlmProvider'
 import { VARIABLE_GUIDANCE, type VariableGuidance } from './guidance'
 import type { ProfileVariables } from './profile'
+import { extract } from './extract'
+import { mergeProfile } from './profile'
+import { queryCorpus, type CorpusChunk } from '@/lib/retriever/query'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -211,4 +214,128 @@ export function mapChipToVariable(
   }
 
   return {}
+}
+
+// ── Eligibility result transformer ────────────────────────────────────────────
+
+export function toEligibilityResult(rulesResult: RulesResult): EligibilityResult {
+  const needs_info = Object.entries(rulesResult.traces)
+    .filter(([, trace]) => Array.isArray(trace.missing) && trace.missing.length > 0)
+    .map(([schemeId, trace]) => ({ schemeId, missingVars: trace.missing! }))
+
+  return {
+    eligible: rulesResult.eligible,
+    needs_info,
+    ineligible: rulesResult.ineligible,
+  }
+}
+
+// ── System prompt builder ─────────────────────────────────────────────────────
+
+export function buildSystemPrompt(
+  mergedProfile: ProfileVariables,
+  eligibility: EligibilityResult,
+  chunks: CorpusChunk[],
+  nextQuestion: NextQuestion | null,
+): string {
+  const eligibleNames = eligibility.eligible.join(', ') || 'none yet'
+  const needsInfoNames = eligibility.needs_info.map((n) => n.schemeId).join(', ') || 'none'
+  const ineligibleNames = eligibility.ineligible.join(', ') || 'none yet'
+
+  const sources = chunks.map((c) => `[${c.scheme_id}] ${c.chunk_text}`).join('\n\n')
+
+  const nextQ = nextQuestion
+    ? `\nNext question to ask the user (ask this naturally, exactly once): ${nextQuestion.question}`
+    : '\nAll questions have been answered. Summarise the results clearly.'
+
+  return `You are a friendly Australian government benefits advisor called Benefits.AI. Help users discover entitlements they qualify for.
+
+Rules:
+- Ask EXACTLY ONE question per response — the specified next question below
+- If eligible schemes exist, briefly acknowledge them before asking
+- Every factual claim about payment amounts or eligibility conditions must come from the Official sources below
+- Use plain, warm language — no jargon
+- Never make definitive eligibility determinations — say "you may qualify" or "you appear eligible"
+- Do NOT invent rules, amounts, or conditions not present in the Official sources
+
+Current user profile:
+${JSON.stringify(mergedProfile, null, 2)}
+
+Eligibility results so far:
+- Appears eligible: ${eligibleNames}
+- Needs more information: ${needsInfoNames}
+- Not eligible: ${ineligibleNames}
+
+Official sources (cite these for any factual claims):
+${sources || 'No sources loaded yet — ask the next question to gather more profile information.'}
+${nextQ}`
+}
+
+// ── prepareTurn ───────────────────────────────────────────────────────────────
+
+export async function prepareTurn(
+  userMessage: string,
+  currentProfile: ProfileVariables,
+  history: LlmMessage[],
+  llm: LlmProvider,
+  chipDelta: Partial<ProfileVariables> = {},
+): Promise<TurnContext> {
+  // 1. Apply chip answer first (pre-mapped, bypasses noisy extraction)
+  const profileWithChip = mergeProfile(currentProfile, chipDelta)
+
+  // 2. Extract structured variables from user prose
+  const extractedDelta = await extract(userMessage, profileWithChip, llm)
+  const fullDelta: Partial<ProfileVariables> = { ...chipDelta, ...extractedDelta }
+  const merged = mergeProfile(profileWithChip, extractedDelta)
+
+  // 3. Call rules engine
+  const rulesUrl = process.env.RULES_SERVICE_URL ?? 'http://localhost:8001'
+  let rulesResult: RulesResult
+  try {
+    const res = await fetch(`${rulesUrl}/calculate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variables: merged }),
+    })
+    if (!res.ok) throw new Error(`Rules service ${res.status}`)
+    rulesResult = (await res.json()) as RulesResult
+  } catch (err) {
+    console.error('prepareTurn: rules service error', err)
+    rulesResult = { eligible: [], ineligible: [], missing_variables: [], traces: {} }
+  }
+
+  const eligibility = toEligibilityResult(rulesResult)
+
+  // 4. Pick next question
+  const nextQuestion = pickNextQuestion(
+    rulesResult.missing_variables,
+    merged,
+    history,
+    rulesResult.traces,
+  )
+
+  // 5. Fetch corpus chunks scoped to eligible + needs-info schemes
+  const relevantSchemeIds = [
+    ...eligibility.eligible,
+    ...eligibility.needs_info.map((n) => n.schemeId),
+  ]
+  let chunks: CorpusChunk[] = []
+  try {
+    chunks = await queryCorpus(merged, relevantSchemeIds, 4)
+  } catch (err) {
+    console.error('prepareTurn: retriever error', err)
+  }
+
+  // 6. Build system prompt
+  const systemPrompt = buildSystemPrompt(merged, eligibility, chunks, nextQuestion)
+
+  return {
+    profileDelta: fullDelta,
+    mergedProfile: merged,
+    eligibility,
+    nextQuestion,
+    systemPrompt,
+    chips: nextQuestion?.chips ?? [],
+    guidance: nextQuestion?.guidance ?? null,
+  }
 }
