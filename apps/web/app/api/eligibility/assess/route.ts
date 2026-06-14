@@ -4,6 +4,7 @@ import type { RulesResult } from '@/lib/orchestrator/turn'
 import { toEligibilityResult } from '@/lib/orchestrator/turn'
 import type { SchemeMetadata } from '@/components/SchemeCard'
 import { transformToResults } from '@/lib/eligibility/transform'
+import { createClient } from '@/lib/supabase/server'
 
 const RULES_URL = process.env.RULES_SERVICE_URL ?? 'http://localhost:8001'
 
@@ -67,6 +68,32 @@ export async function POST(req: Request) {
 
     const eligibility = toEligibilityResult(rulesResult)
     const results = transformToResults(eligibility, schemes, profile)
+
+    // Persist to conversation if signed-in user provided a conversationId
+    if (body.conversationId) {
+      try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from('assessments').insert({
+            conversation_id: body.conversationId,
+            programs: results.programs,
+            total: results.total,
+            claimable: results.claimable,
+          })
+          const status = results.claimable > 0
+            ? `${results.claimable} match${results.claimable === 1 ? '' : 'es'}`
+            : null
+          await supabase
+            .from('conversations')
+            .update({ status, variables: profile })
+            .eq('id', body.conversationId)
+        }
+      } catch (persistErr) {
+        // Non-fatal — results are still returned even if persistence fails
+        console.error('assess persistence failed', persistErr)
+      }
+    }
 
     return NextResponse.json(results)
   } catch (err) {

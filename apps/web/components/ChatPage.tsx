@@ -14,6 +14,8 @@ import { MessageList } from './MessageList'
 import { Discovery } from './Discovery'
 import { Results } from './Results'
 import type { ResultsData } from '@/lib/eligibility/types'
+import type { ConversationSummary } from '@/lib/conversations/types'
+import type { ChatItem } from './ChatHistory'
 import type { SchemeMetadata } from './SchemeCard'
 
 type Stage = 'conversation' | 'discovering' | 'results'
@@ -95,8 +97,11 @@ export function ChatPage(_: ChatPageProps) {
   const [input, setInput] = useState('')
   const [stage, setStage] = useState<Stage>('conversation')
   const [results, setResults] = useState<ResultsData | null>(null)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [chats, setChats] = useState<ChatItem[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
+  const lastPersistedRef = useRef<Set<string>>(new Set())
 
   const profileRef = useRef(profile)
   const lastAskedRef = useRef(lastAskedVariable)
@@ -121,14 +126,25 @@ export function ChatPage(_: ChatPageProps) {
     }
   }, [messages, profile, chips, guidance, lastAskedVariable, eligibility])
 
-  // Auto-send initial message from landing page
+  // Auto-send initial message from landing page, or open a saved conversation
   useEffect(() => {
     if (initialSentRef.current) return
-    const msg = sessionStorage.getItem('benefits_initial_message')
-    if (!msg) return
     initialSentRef.current = true
-    sessionStorage.removeItem('benefits_initial_message')
-    void append({ role: 'user', content: msg })
+
+    // Priority 1: sidebar requested we open a specific past conversation
+    const openId = sessionStorage.getItem('benefits_open_conversation')
+    if (openId) {
+      sessionStorage.removeItem('benefits_open_conversation')
+      void openConversation({ id: openId, title: '', ts: 0, status: null })
+      return
+    }
+
+    // Priority 2: user typed a message on the landing page
+    const msg = sessionStorage.getItem('benefits_initial_message')
+    if (msg) {
+      sessionStorage.removeItem('benefits_initial_message')
+      void append({ role: 'user', content: msg })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -157,6 +173,92 @@ export function ChatPage(_: ChatPageProps) {
       setLastAskedVariable(payload.guidanceVariable ?? null)
     }
   }, [data])
+
+  // ── Load conversation list for sidebar (logged-in users only) ──────────────
+  useEffect(() => {
+    if (!user || authLoading) return
+    void (async () => {
+      try {
+        const res = await fetch('/api/conversations')
+        if (!res.ok) return
+        const list = (await res.json()) as ConversationSummary[]
+        setChats(list.map((c) => ({ id: c.id, title: c.title, ts: c.ts, status: c.status })))
+      } catch (err) {
+        console.error('load conversations failed', err)
+      }
+    })()
+  }, [user, authLoading, conversationId, results])
+
+  // ── Load a past conversation when user clicks one in the sidebar ───────────
+  const openConversation = useCallback(async (c: ChatItem) => {
+    setHistOpen(false)
+    if (c.id === conversationId) return
+    try {
+      const res = await fetch(`/api/conversations/${c.id}`)
+      if (!res.ok) throw new Error(`open ${res.status}`)
+      const detail = await res.json()
+      lastPersistedRef.current = new Set((detail.messages as { id: string }[]).map((m) => m.id))
+      setMessages(detail.messages.length > 0 ? detail.messages : [WELCOME_MESSAGE])
+      setProfile(detail.variables ?? {})
+      setConversationId(c.id)
+      if (detail.latestAssessment) {
+        setResults(detail.latestAssessment)
+        setStage('results')
+      } else {
+        setStage('conversation')
+      }
+    } catch (err) {
+      console.error('open conversation failed', err)
+      addToast({ title: "Couldn't open conversation", message: 'Please try again.' })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId])
+
+  // ── Conversation persistence (logged-in users only) ────────────────────────
+  // On each new message (post-welcome), create a conversation if we don't have
+  // one, then append the message to /api/conversations/:id/messages. The
+  // sessionStorage path keeps working for guests.
+  useEffect(() => {
+    if (!user || authLoading) return
+    if (messages.length <= 1) return  // only WELCOME — nothing to persist yet
+    if (isLoading) return              // wait for stream to finish before saving
+
+    const lastMsg = messages[messages.length - 1]
+    if (!lastMsg || lastPersistedRef.current.has(lastMsg.id)) return
+
+    void (async () => {
+      try {
+        let cid = conversationId
+        if (!cid) {
+          // First persisted turn — create the conversation record
+          const firstUser = messages.find((m) => m.role === 'user')
+          if (!firstUser) return
+          const res = await fetch('/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ firstMessage: firstUser.content }),
+          })
+          if (!res.ok) throw new Error(`create conversation ${res.status}`)
+          const { id } = (await res.json()) as { id: string }
+          cid = id
+          setConversationId(id)
+        }
+
+        await fetch(`/api/conversations/${cid}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: lastMsg.role,
+            content: lastMsg.content,
+            variables: profileRef.current,
+          }),
+        })
+        lastPersistedRef.current.add(lastMsg.id)
+      } catch (err) {
+        console.error('persist conversation failed', err)
+      }
+    })()
+  }, [messages, isLoading, user, authLoading, conversationId])
 
   function handleChipClick(value: string) {
     if (value === 'Not sure? →') {
@@ -205,7 +307,10 @@ export function ChatPage(_: ChatPageProps) {
       const res = await fetch('/api/eligibility/assess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: profileRef.current }),
+        body: JSON.stringify({
+          profile: profileRef.current,
+          conversationId: conversationId ?? undefined,
+        }),
       })
       if (!res.ok) throw new Error(`assess ${res.status}`)
       const data = (await res.json()) as ResultsData
@@ -228,6 +333,8 @@ export function ChatPage(_: ChatPageProps) {
     setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
     setResults(null)
     setStage('conversation')
+    setConversationId(null)
+    lastPersistedRef.current = new Set()
     router.push('/')
   }
 
@@ -367,9 +474,9 @@ export function ChatPage(_: ChatPageProps) {
         <ChatHistory
           open={histOpen}
           onToggle={() => setHistOpen((o) => !o)}
-          chats={[]}
-          activeId={null}
-          onSelect={() => setHistOpen(false)}
+          chats={chats}
+          activeId={conversationId}
+          onSelect={openConversation}
           onNew={() => { setHistOpen(false); restartAssessment() }}
         />
       )}

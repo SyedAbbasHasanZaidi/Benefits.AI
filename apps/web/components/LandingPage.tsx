@@ -129,12 +129,28 @@ export function LandingPage() {
     if (!voiceOn) addToast({ title: 'Listening…', message: 'Voice input is a demo in this preview.' })
   }
 
-  // Seed chats for logged-in users (until Supabase persistence is wired)
-  const SEED_CHATS: ChatItem[] = user ? [
-    { id: 'c1', title: 'Single parent, two children',  ts: Date.now() - 2 * 3600e3,  status: '4 matches' },
-    { id: 'c2', title: 'Lost job — income support',    ts: Date.now() - 6 * 3600e3,  status: '2 matches' },
-    { id: 'c3', title: 'Rent help while studying',     ts: Date.now() - 27 * 3600e3, status: null },
-  ] : []
+  // Real conversations from Supabase (logged-in users only)
+  const [chats, setChats] = useState<ChatItem[]>([])
+  useEffect(() => {
+    if (!user || isLoading) return
+    void (async () => {
+      try {
+        const res = await fetch('/api/conversations')
+        if (!res.ok) return
+        const list = (await res.json()) as Array<{ id: string; title: string; status: string | null; ts: number }>
+        setChats(list)
+      } catch (err) {
+        console.error('load conversations failed', err)
+      }
+    })()
+  }, [user, isLoading])
+
+  function openConversation(c: ChatItem) {
+    setHistOpen(false)
+    // Route to /chat with the conversation id; ChatPage will hydrate it
+    sessionStorage.setItem('benefits_open_conversation', c.id)
+    router.push('/chat')
+  }
 
   return (
     <div className={`landing-shell${focused ? ' input-focused' : ''}`}>
@@ -280,9 +296,9 @@ export function LandingPage() {
         <ChatHistory
           open={histOpen}
           onToggle={() => setHistOpen((o) => !o)}
-          chats={SEED_CHATS}
+          chats={chats}
           activeId={null}
-          onSelect={() => setHistOpen(false)}
+          onSelect={openConversation}
           onNew={() => setHistOpen(false)}
         />
       )}
