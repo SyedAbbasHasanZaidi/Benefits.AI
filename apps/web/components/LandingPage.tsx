@@ -97,9 +97,20 @@ export function LandingPage() {
   function exitFocus() { setShift(0); setFocused(false) }
 
   function fillPrompt(text: string) {
-    setInput(text)
+    // Append with a space if there's existing user text, otherwise just fill.
+    // This avoids overwriting what the user already typed.
+    setInput((prev) => {
+      const trimmed = prev.trim()
+      return trimmed ? `${trimmed} ${text}` : text
+    })
     const ta = heroRef.current?.querySelector('textarea')
-    if (ta) { ta.focus(); ta.setSelectionRange(text.length, text.length) }
+    if (ta) {
+      // Focus on next tick so the new value is settled
+      setTimeout(() => {
+        ta.focus()
+        ta.setSelectionRange(ta.value.length, ta.value.length)
+      }, 0)
+    }
   }
 
   function handleSubmit() {
@@ -215,8 +226,17 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Prompt pills */}
-          <div className="dimmable no-pointer" style={{ '--d': '200ms' } as React.CSSProperties}>
+          {/* Prompt pills — hide once user has typed something, but keep visible while input is empty */}
+          <div
+            className="dimmable no-pointer"
+            style={{
+              '--d': '200ms',
+              opacity: input.trim() ? 0 : 1,
+              pointerEvents: input.trim() ? 'none' : 'auto',
+              transition: 'opacity 280ms ease',
+            } as React.CSSProperties}
+            aria-hidden={!!input.trim()}
+          >
             <div style={{ marginTop: 22, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 9 }}>
               {PROMPTS.map((p) => (
                 <button key={p.text} className="prompt-pill" title={p.cat} onClick={() => fillPrompt(p.text)} style={{

@@ -1,9 +1,9 @@
 'use client'
 
 import { useChat } from 'ai/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { JSONValue } from 'ai'
+import type { JSONValue, Message } from 'ai'
 import { mergeProfile, type ProfileVariables } from '@/lib/orchestrator/profile'
 import type { EligibilityResult } from '@/lib/orchestrator/turn'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
@@ -12,6 +12,31 @@ import { AppHeader, useToasts, ToastStack } from './AppHeader'
 import { ChatHistory } from './ChatHistory'
 import { MessageList } from './MessageList'
 import type { SchemeMetadata } from './SchemeCard'
+
+const SESSION_KEY = 'benefits_chat_state'
+
+interface PersistedState {
+  messages: Message[]
+  profile: ProfileVariables
+  chips: string[]
+  guidance: VariableGuidance | null
+  lastAskedVariable: keyof ProfileVariables | null
+  eligibility: EligibilityResult | null
+}
+
+function loadSession(): PersistedState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as PersistedState
+  } catch { return null }
+}
+
+function saveSession(state: PersistedState) {
+  if (typeof window === 'undefined') return
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(state)) } catch {}
+}
 
 interface StreamPayload {
   profileDelta?: Partial<ProfileVariables>
@@ -51,11 +76,14 @@ export function ChatPage(_: ChatPageProps) {
   const { user, isLoading: authLoading } = useAuth()
   const { toasts, addToast, dismiss } = useToasts()
 
-  const [profile, setProfile] = useState<ProfileVariables>({})
-  const [, setEligibility] = useState<EligibilityResult | null>(null)
-  const [chips, setChips] = useState<string[]>([])
-  const [guidance, setGuidance] = useState<VariableGuidance | null>(null)
-  const [lastAskedVariable, setLastAskedVariable] = useState<keyof ProfileVariables | null>(null)
+  // Restore prior session on mount (sessionStorage) — survives navigation within tab
+  const restored = useMemo(() => loadSession(), [])
+
+  const [profile, setProfile] = useState<ProfileVariables>(restored?.profile ?? {})
+  const [eligibility, setEligibility] = useState<EligibilityResult | null>(restored?.eligibility ?? null)
+  const [chips, setChips] = useState<string[]>(restored?.chips ?? [])
+  const [guidance, setGuidance] = useState<VariableGuidance | null>(restored?.guidance ?? null)
+  const [lastAskedVariable, setLastAskedVariable] = useState<keyof ProfileVariables | null>(restored?.lastAskedVariable ?? null)
   const [showGuidance, setShowGuidance] = useState(false)
   const [histOpen, setHistOpen] = useState(false)
   const [voiceOn, setVoiceOn] = useState(false)
@@ -68,9 +96,9 @@ export function ChatPage(_: ChatPageProps) {
   profileRef.current = profile
   lastAskedRef.current = lastAskedVariable
 
-  const { messages, append, isLoading, data } = useChat({
+  const { messages, append, isLoading, data, setMessages } = useChat({
     api: '/api/chat',
-    initialMessages: [WELCOME_MESSAGE],
+    initialMessages: restored?.messages && restored.messages.length > 0 ? restored.messages : [WELCOME_MESSAGE],
     fetch: async (url, options) => {
       const body = JSON.parse((options?.body as string) ?? '{}') as Record<string, unknown>
       body.profile = profileRef.current
@@ -78,6 +106,13 @@ export function ChatPage(_: ChatPageProps) {
       return fetch(url, { ...options, body: JSON.stringify(body) })
     },
   })
+
+  // Persist every state change to sessionStorage
+  useEffect(() => {
+    if (messages.length > 1 || profile && Object.keys(profile).length > 0) {
+      saveSession({ messages, profile, chips, guidance, lastAskedVariable, eligibility })
+    }
+  }, [messages, profile, chips, guidance, lastAskedVariable, eligibility])
 
   // Auto-send initial message from landing page
   useEffect(() => {
@@ -238,7 +273,13 @@ export function ChatPage(_: ChatPageProps) {
           chats={[]}
           activeId={null}
           onSelect={() => setHistOpen(false)}
-          onNew={() => { setHistOpen(false); router.push('/') }}
+          onNew={() => {
+            setHistOpen(false)
+            sessionStorage.removeItem(SESSION_KEY)
+            setMessages([WELCOME_MESSAGE])
+            setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
+            router.push('/')
+          }}
         />
       )}
 
