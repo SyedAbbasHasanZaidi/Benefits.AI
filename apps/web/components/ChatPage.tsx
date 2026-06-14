@@ -1,7 +1,7 @@
 'use client'
 
 import { useChat } from 'ai/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { JSONValue, Message } from 'ai'
 import { mergeProfile, type ProfileVariables } from '@/lib/orchestrator/profile'
@@ -11,7 +11,12 @@ import { useAuth } from '@/lib/auth/context'
 import { AppHeader, useToasts, ToastStack } from './AppHeader'
 import { ChatHistory } from './ChatHistory'
 import { MessageList } from './MessageList'
+import { Discovery } from './Discovery'
+import { Results } from './Results'
+import type { ResultsData } from '@/lib/eligibility/types'
 import type { SchemeMetadata } from './SchemeCard'
+
+type Stage = 'conversation' | 'discovering' | 'results'
 
 const SESSION_KEY = 'benefits_chat_state'
 
@@ -88,6 +93,8 @@ export function ChatPage(_: ChatPageProps) {
   const [histOpen, setHistOpen] = useState(false)
   const [voiceOn, setVoiceOn] = useState(false)
   const [input, setInput] = useState('')
+  const [stage, setStage] = useState<Stage>('conversation')
+  const [results, setResults] = useState<ResultsData | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
 
@@ -187,6 +194,76 @@ export function ChatPage(_: ChatPageProps) {
     if (!voiceOn) addToast({ title: 'Listening…', message: 'Voice input is a demo in this preview.' })
   }
 
+  /**
+   * Run the eligibility assessment — moves stage: conversation → discovering → results.
+   * The Discovery loader stays up until the /api/eligibility/assess promise resolves.
+   * On failure, falls back to conversation with a danger toast (per design contract).
+   */
+  const runAssessment = useCallback(async () => {
+    setStage('discovering')
+    try {
+      const res = await fetch('/api/eligibility/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: profileRef.current }),
+      })
+      if (!res.ok) throw new Error(`assess ${res.status}`)
+      const data = (await res.json()) as ResultsData
+      setResults(data)
+      setStage('results')
+    } catch (err) {
+      console.error('assessment failed', err)
+      addToast({
+        title: "Couldn't run assessment",
+        message: 'Something went wrong while checking your eligibility. Please try again.',
+      })
+      setStage('conversation')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function restartAssessment() {
+    sessionStorage.removeItem(SESSION_KEY)
+    setMessages([WELCOME_MESSAGE])
+    setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
+    setResults(null)
+    setStage('conversation')
+    router.push('/')
+  }
+
+  // Show "See my matches" CTA when we have at least 4 user turns + some eligibility data
+  const userTurns = messages.filter((m) => m.role === 'user').length
+  const hasEligibilitySignal = (eligibility?.eligible.length ?? 0) + (eligibility?.needs_info.length ?? 0) > 0
+  const canAssess = userTurns >= 3 && hasEligibilitySignal && stage === 'conversation'
+
+  // Render Discovery / Results based on stage
+  if (stage === 'discovering') {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
+        background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
+        color: 'var(--text)', fontFamily: 'var(--font-body)',
+      }}>
+        <AppHeader onToast={addToast} bordered />
+        <Discovery done={false} />
+        <ToastStack toasts={toasts} onDismiss={dismiss} />
+      </div>
+    )
+  }
+
+  if (stage === 'results' && results) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
+        background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
+        color: 'var(--text)', fontFamily: 'var(--font-body)',
+      }}>
+        <Results data={results} onRestart={restartAssessment} />
+        <ToastStack toasts={toasts} onDismiss={dismiss} />
+      </div>
+    )
+  }
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
@@ -207,6 +284,26 @@ export function ChatPage(_: ChatPageProps) {
         onChipClick={handleChipClick}
         onDismissGuidance={handleDismissGuidance}
       />
+
+      {/* ── "See my matches" CTA — appears when enough info gathered ── */}
+      {canAssess && (
+        <div style={{ padding: '0 26px 12px', flexShrink: 0 }}>
+          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={runAssessment}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'var(--accent)', color: 'var(--accent-ink)',
+                border: 'none', borderRadius: 12, padding: '10px 18px',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'var(--font-body)', boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              See my matches →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Composer dock ── */}
       <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
@@ -273,13 +370,7 @@ export function ChatPage(_: ChatPageProps) {
           chats={[]}
           activeId={null}
           onSelect={() => setHistOpen(false)}
-          onNew={() => {
-            setHistOpen(false)
-            sessionStorage.removeItem(SESSION_KEY)
-            setMessages([WELCOME_MESSAGE])
-            setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
-            router.push('/')
-          }}
+          onNew={() => { setHistOpen(false); restartAssessment() }}
         />
       )}
 
