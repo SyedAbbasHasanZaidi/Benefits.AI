@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ModalWrapper } from './ModalWrapper'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -71,20 +72,18 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
     }
   }
 
-  function handleClose() {
+  function resetAndClose(closeFn: () => void) {
     setEmail('')
     setStep('idle')
     setError(null)
-    onClose()
+    closeFn()
   }
 
   return (
-    <div
-      className="modal-scrim"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose() }}
-    >
-      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Sign in to Benefits.AI">
-        <button className="modal-x" aria-label="Close" onClick={handleClose}>
+    <ModalWrapper onClose={onClose} label="Sign in to Benefits.AI">
+      {(handleClose) => (
+      <>
+        <button className="modal-x" aria-label="Close" onClick={() => resetAndClose(handleClose)}>
           <XIcon size={18} />
         </button>
 
@@ -179,7 +178,8 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
             </p>
           </>
         )}
-      </div>
-    </div>
+      </>
+      )}
+    </ModalWrapper>
   )
 }

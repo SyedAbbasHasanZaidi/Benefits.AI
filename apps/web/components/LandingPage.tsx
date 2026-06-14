@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/context'
 import { ChatHistory } from './ChatHistory'
 import type { ChatItem } from './ChatHistory'
 import { SignInModal } from './SignInModal'
+import { ModalWrapper } from './ModalWrapper'
 
 // ── Static data ───────────────────────────────────────────────────────────────
 
@@ -176,43 +177,39 @@ function useToasts() {
 // ── How it works modal ────────────────────────────────────────────────────────
 
 function HowItWorksModal({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-card" role="dialog" aria-modal="true" aria-label="How Benefits.AI works">
-        <button className="modal-x" aria-label="Close" onClick={onClose}><Icon.X size={18} /></button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
-          <span style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)' }}>
-            <Icon.Sparkle size={21} />
-          </span>
-          <div style={{ flex: 1, paddingTop: 2 }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
-              How Benefits.AI works
-            </h2>
-            <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'var(--muted)' }}>Four simple steps — no forms, no jargon.</p>
+    <ModalWrapper onClose={onClose} label="How Benefits.AI works">
+      {(handleClose) => (
+        <>
+          <button className="modal-x" aria-label="Close" onClick={handleClose}><Icon.X size={18} /></button>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
+            <span style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)' }}>
+              <Icon.Sparkle size={21} />
+            </span>
+            <div style={{ flex: 1, paddingTop: 2 }}>
+              <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
+                How Benefits.AI works
+              </h2>
+              <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'var(--muted)' }}>Four simple steps — no forms, no jargon.</p>
+            </div>
           </div>
-        </div>
-        <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {HOW_IT_WORKS_STEPS.map((s, i) => (
-            <li key={i} style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{i + 1}</span>
-              <div style={{ paddingTop: 2 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text)' }}>{s.title}</div>
-                <div style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{s.body}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22 }}>
-          <button className="modal-btn primary" onClick={onClose}>Got it</button>
-        </div>
-      </div>
-    </div>
+          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {HOW_IT_WORKS_STEPS.map((s, i) => (
+              <li key={i} style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
+                <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{i + 1}</span>
+                <div style={{ paddingTop: 2 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text)' }}>{s.title}</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{s.body}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22 }}>
+            <button className="modal-btn primary" onClick={handleClose}>Got it</button>
+          </div>
+        </>
+      )}
+    </ModalWrapper>
   )
 }
 
@@ -286,90 +283,10 @@ function initials(name: string) {
   return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase()
 }
 
-// ── Info modals triggered from SettingsMenu ───────────────────────────────────
-
-const INFO_MODALS = {
-  resources: {
-    icon: 'Book' as IconName,
-    title: 'Resources',
-    subtitle: 'Official guides and support services.',
-    steps: [
-      { title: 'Services Australia', body: 'The official government agency for Centrelink payments, Medicare, and family assistance. servicesaustralia.gov.au' },
-      { title: 'myGov', body: 'Link Centrelink, Medicare, ATO and other services in one place. my.gov.au' },
-      { title: 'National Debt Helpline', body: 'Free financial counselling. Call 1800 007 007 (Mon–Fri, 9:30am–4:30pm).' },
-      { title: 'NSW Concessions finder', body: 'Find state concessions for NSW residents. service.nsw.gov.au/concessions' },
-    ],
-  },
-  accessibility: {
-    icon: 'Accessibility' as IconName,
-    title: 'Accessibility',
-    subtitle: 'Designed to work for everyone.',
-    steps: [
-      { title: 'Screen readers', body: 'Benefits.AI is fully compatible with VoiceOver (iOS/macOS) and NVDA/JAWS (Windows).' },
-      { title: 'Keyboard navigation', body: 'All interactive elements are reachable by Tab key. Press Enter or Space to activate.' },
-      { title: 'Reduced motion', body: 'Animations respect your device\'s "Reduce Motion" setting automatically.' },
-      { title: 'Languages', body: 'Change your language at any time using the selector in the top right corner.' },
-    ],
-  },
-  help: {
-    icon: 'Help' as IconName,
-    title: 'Help & support',
-    subtitle: "We're here if you get stuck.",
-    steps: [
-      { title: 'How it works', body: 'Click "How it works" in the header for a step-by-step guide to Benefits.AI.' },
-      { title: 'Government helpline', body: 'For complex Centrelink queries, call Services Australia on 132 300 (Mon–Fri, 8am–5pm).' },
-      { title: 'Interpreter services', body: 'Call the Translating and Interpreting Service (TIS) on 131 450 — available 24/7.' },
-      { title: 'Feedback', body: 'Help us improve — use the feedback option after your results are shown.' },
-    ],
-  },
-}
-
-function InfoModal({ type, onClose }: { type: keyof typeof INFO_MODALS; onClose: () => void }) {
-  const cfg = INFO_MODALS[type]
-  const C = Icon[cfg.icon]
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-card" role="dialog" aria-modal="true" aria-label={cfg.title}>
-        <button className="modal-x" aria-label="Close" onClick={onClose}><Icon.X size={18} /></button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
-          <span style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)' }}>
-            <C size={21} />
-          </span>
-          <div style={{ flex: 1, paddingTop: 2 }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>{cfg.title}</h2>
-            <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'var(--muted)' }}>{cfg.subtitle}</p>
-          </div>
-        </div>
-        <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {cfg.steps.map((s, i) => (
-            <li key={i} style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{i + 1}</span>
-              <div style={{ paddingTop: 2 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text)' }}>{s.title}</div>
-                <div style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{s.body}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22 }}>
-          <button className="modal-btn primary" onClick={onClose}>Got it</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function SettingsMenu({ onHowItWorks, onSignIn }: { onHowItWorks: () => void; onSignIn: () => void }) {
   const { user } = useAuth()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [infoModal, setInfoModal] = useState<keyof typeof INFO_MODALS | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -385,17 +302,16 @@ function SettingsMenu({ onHowItWorks, onSignIn }: { onHowItWorks: () => void; on
     await createClient().auth.signOut()
   }
 
-  function openInfo(type: keyof typeof INFO_MODALS) { setOpen(false); setInfoModal(type) }
-  function requireSignIn() { setOpen(false); onSignIn() }
+  function go(hash: string) { setOpen(false); router.push(`/profile#${hash}`) }
 
-  type MenuItem = { icon: IconName; label: string; locked?: boolean; onClick: () => void; danger?: boolean }
+  type MenuItem = { icon: IconName; label: string; locked?: boolean; onClick: () => void }
   const items: MenuItem[] = [
-    { icon: 'User',          label: 'Profile',                  locked: !user,  onClick: user ? () => setOpen(false) : requireSignIn },
-    { icon: 'Book',          label: 'Resources',                                onClick: () => openInfo('resources') },
-    { icon: 'Bell',          label: 'Notification preferences', locked: !user,  onClick: user ? () => setOpen(false) : requireSignIn },
-    { icon: 'Accessibility', label: 'Accessibility settings',                   onClick: () => openInfo('accessibility') },
-    { icon: 'Lock',          label: 'Privacy & data',           locked: !user,  onClick: user ? () => setOpen(false) : requireSignIn },
-    { icon: 'Help',          label: 'Help & support',                           onClick: () => openInfo('help') },
+    { icon: 'User',          label: 'Profile',                  locked: !user,  onClick: () => go('profile') },
+    { icon: 'Book',          label: 'Resources',                                onClick: () => go('resources') },
+    { icon: 'Bell',          label: 'Notification preferences', locked: !user,  onClick: () => go('notifications') },
+    { icon: 'Accessibility', label: 'Accessibility settings',                   onClick: () => go('accessibility') },
+    { icon: 'Lock',          label: 'Privacy & data',           locked: !user,  onClick: () => go('privacy') },
+    { icon: 'Help',          label: 'Help & support',                           onClick: () => go('help') },
   ]
 
   const displayName = user?.user_metadata?.full_name as string | undefined
@@ -491,7 +407,6 @@ function SettingsMenu({ onHowItWorks, onSignIn }: { onHowItWorks: () => void; on
           )}
         </div>
       )}
-      {infoModal && <InfoModal type={infoModal} onClose={() => setInfoModal(null)} />}
     </div>
   )
 }
