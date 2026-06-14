@@ -9,18 +9,22 @@ export function QuickReplyChips({ chips, onChipClick }: QuickReplyChipsProps) {
   if (chips.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-2 pl-10">
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, paddingLeft: 44 }}>
       {chips.map((chip) => {
         const isGuidance = chip === 'Not sure? →'
         return (
           <button
             key={chip}
             onClick={() => onChipClick(chip)}
-            className={
-              isGuidance
-                ? 'rounded-full border border-blue-600 px-4 py-1.5 text-sm text-blue-400 hover:bg-blue-900/30 transition-colors'
-                : 'rounded-full border border-gray-600 px-4 py-1.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors'
-            }
+            className="prompt-pill"
+            style={{
+              background: 'var(--surface)',
+              border: isGuidance ? '1px solid var(--accent)' : '1px solid var(--border-strong)',
+              color: isGuidance ? 'var(--accent)' : 'var(--text-soft)',
+              padding: '8px 14px', borderRadius: 999,
+              fontSize: 13.5, fontWeight: 500, boxShadow: 'var(--shadow-sm)',
+              cursor: 'pointer',
+            }}
           >
             {chip}
           </button>

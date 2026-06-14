@@ -9,30 +9,50 @@ interface GuidanceCardProps {
 
 export function GuidanceCard({ guidance, onDismiss }: GuidanceCardProps) {
   return (
-    <div className="mx-auto max-w-xl rounded-xl border border-blue-500/30 bg-blue-950/40 p-4 text-sm">
-      <p className="mb-3 text-gray-200">{guidance.explanation}</p>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-400">
+    <div style={{
+      marginLeft: 44, maxWidth: 560,
+      background: 'var(--accent-tint)',
+      border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+      borderRadius: 14, padding: 18,
+    }}>
+      <p style={{ margin: '0 0 14px', fontSize: 14, lineHeight: 1.55, color: 'var(--text)' }}>
+        {guidance.explanation}
+      </p>
+
+      <p style={{
+        margin: '0 0 8px',
+        fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+        color: 'var(--accent)',
+      }}>
         Where to find this
       </p>
-      <ul className="mb-4 space-y-1">
+
+      <ul style={{ margin: '0 0 16px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {guidance.links.map((link) => (
           <li key={link.url}>
             <a
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 underline underline-offset-2 hover:text-blue-300"
+              style={{
+                color: 'var(--accent)', fontSize: 13.5, textDecoration: 'none',
+                fontWeight: 500,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
             >
               → {link.label}
             </a>
           </li>
         ))}
       </ul>
+
       <button
         onClick={onDismiss}
-        className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-gray-100 hover:bg-gray-600 transition-colors"
+        className="modal-btn primary"
+        style={{ fontSize: 13.5, padding: '8px 16px' }}
       >
-        Got it — I'll answer now
+        Got it — I&apos;ll answer now
       </button>
     </div>
   )

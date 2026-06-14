@@ -13,12 +13,7 @@ interface ResultsDrawerProps {
 }
 
 export function ResultsDrawer({
-  eligibility,
-  schemes,
-  open,
-  onToggle,
-  onAskMore,
-  onAnswerInChat,
+  eligibility, schemes, open, onToggle, onAskMore, onAnswerInChat,
 }: ResultsDrawerProps) {
   const schemeMap = new Map(schemes.map((s) => [s.id, s]))
 
@@ -30,46 +25,55 @@ export function ResultsDrawer({
   if (total === 0) return null
 
   return (
-    <div className="border-b border-gray-800 bg-gray-950">
+    <div style={{
+      background: 'var(--surface)', borderBottom: '1px solid var(--border)',
+    }}>
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-gray-900 transition-colors"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%', padding: '12px 26px', background: 'transparent', border: 'none',
+          cursor: 'pointer', fontFamily: 'var(--font-body)',
+          transition: 'background 140ms ease',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13.5, fontWeight: 500 }}>
           {eligibleCount > 0 && (
-            <span className="flex items-center gap-1 text-green-400">
-              <span>✓</span>
-              <span>{eligibleCount} eligible</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1f8a5b' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1f8a5b' }} />
+              {eligibleCount} eligible
             </span>
           )}
           {needsInfoCount > 0 && (
-            <span className="flex items-center gap-1 text-amber-400">
-              <span>⚠</span>
-              <span>{needsInfoCount} needs info</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9a7a2e' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9a7a2e' }} />
+              {needsInfoCount} needs info
             </span>
           )}
           {ineligibleCount > 0 && (
-            <span className="flex items-center gap-1 text-gray-500">
-              <span>✗</span>
-              <span>{ineligibleCount} not eligible</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--faint)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--border-strong)' }} />
+              {ineligibleCount} not eligible
             </span>
           )}
         </div>
-        <span className="text-gray-500">{open ? '▲' : '▼'}</span>
+        <span style={{ color: 'var(--faint)', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="max-h-96 overflow-y-auto px-4 pb-4 space-y-3">
+        <div style={{
+          maxHeight: 400, overflowY: 'auto', padding: '0 26px 18px',
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
           {eligibility?.eligible.map((id) => {
             const scheme = schemeMap.get(id)
             if (!scheme) return null
             return (
               <SchemeCard
-                key={id}
-                scheme={scheme}
-                status="eligible"
-                onAskMore={onAskMore}
-                onAnswerInChat={onAnswerInChat}
+                key={id} scheme={scheme} status="eligible"
+                onAskMore={onAskMore} onAnswerInChat={onAnswerInChat}
               />
             )
           })}
@@ -78,12 +82,8 @@ export function ResultsDrawer({
             if (!scheme) return null
             return (
               <SchemeCard
-                key={schemeId}
-                scheme={scheme}
-                status="needs_info"
-                missingVars={missingVars}
-                onAskMore={onAskMore}
-                onAnswerInChat={onAnswerInChat}
+                key={schemeId} scheme={scheme} status="needs_info"
+                missingVars={missingVars} onAskMore={onAskMore} onAnswerInChat={onAnswerInChat}
               />
             )
           })}

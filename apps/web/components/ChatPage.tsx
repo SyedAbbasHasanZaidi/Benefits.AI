@@ -2,14 +2,14 @@
 
 import { useChat } from 'ai/react'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { JSONValue } from 'ai'
 import { mergeProfile, type ProfileVariables } from '@/lib/orchestrator/profile'
 import type { EligibilityResult } from '@/lib/orchestrator/turn'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
 import { useAuth } from '@/lib/auth/context'
+import { AppHeader, useToasts, ToastStack } from './AppHeader'
 import { ChatHistory } from './ChatHistory'
-import { SignInModal } from './SignInModal'
-import { ResultsDrawer } from './ResultsDrawer'
 import { MessageList } from './MessageList'
 import type { SchemeMetadata } from './SchemeCard'
 
@@ -22,6 +22,7 @@ interface StreamPayload {
 }
 
 interface ChatPageProps {
+  // schemes kept for future results view — not used in conversation view
   schemes: SchemeMetadata[]
 }
 
@@ -32,17 +33,32 @@ const WELCOME_MESSAGE = {
     "Hi! I'm Benefits.AI. Tell me a bit about yourself — your age, work situation, where you live, and whether you rent or own. I'll check what Australian government entitlements you may qualify for.",
 }
 
-export function ChatPage({ schemes }: ChatPageProps) {
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function SendIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" width={size} height={size}
+      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5" /><path d="m5 12 7-7 7 7" />
+    </svg>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+export function ChatPage(_: ChatPageProps) {
+  const router = useRouter()
   const { user, isLoading: authLoading } = useAuth()
+  const { toasts, addToast, dismiss } = useToasts()
+
   const [profile, setProfile] = useState<ProfileVariables>({})
-  const [eligibility, setEligibility] = useState<EligibilityResult | null>(null)
+  const [, setEligibility] = useState<EligibilityResult | null>(null)
   const [chips, setChips] = useState<string[]>([])
   const [guidance, setGuidance] = useState<VariableGuidance | null>(null)
   const [lastAskedVariable, setLastAskedVariable] = useState<keyof ProfileVariables | null>(null)
   const [showGuidance, setShowGuidance] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [histOpen, setHistOpen] = useState(false)
-  const [signInOpen, setSignInOpen] = useState(false)
+  const [voiceOn, setVoiceOn] = useState(false)
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
@@ -63,8 +79,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
     },
   })
 
-  // Auto-send the message the user typed on the landing page.
-  // Runs once after mount; append is stable in the AI SDK.
+  // Auto-send initial message from landing page
   useEffect(() => {
     if (initialSentRef.current) return
     const msg = sessionStorage.getItem('benefits_initial_message')
@@ -75,6 +90,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Process stream data — profile + eligibility + chips + guidance
   useEffect(() => {
     if (!data || data.length === 0) return
     const latest = data[data.length - 1] as JSONValue
@@ -87,9 +103,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
     }
     if (payload.eligibility) {
       setEligibility(payload.eligibility)
-      const hasResults =
-        payload.eligibility.eligible.length > 0 || payload.eligibility.needs_info.length > 0
-      if (hasResults) setDrawerOpen(true)
     }
     if (payload.chips !== undefined) {
       setChips(payload.chips)
@@ -118,19 +131,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
     inputRef.current?.focus()
   }
 
-  function handleAnswerInChat(question: string) {
-    setDrawerOpen(false)
-    setInput(question)
-    setTimeout(() => inputRef.current?.focus(), 50)
-  }
-
-  function handleAskMore(schemeId: string) {
-    setDrawerOpen(false)
-    const question = `Tell me more about the ${schemeId.replace(/_/g, ' ').toLowerCase()} scheme`
-    setInput(question)
-    setTimeout(() => inputRef.current?.focus(), 50)
-  }
-
   function handleSend() {
     const text = input.trim()
     if (!text || isLoading) return
@@ -147,39 +147,22 @@ export function ChatPage({ schemes }: ChatPageProps) {
     }
   }
 
+  function handleVoiceToggle() {
+    setVoiceOn((v) => !v)
+    if (!voiceOn) addToast({ title: 'Listening…', message: 'Voice input is a demo in this preview.' })
+  }
+
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-800 px-4">
-        <a href="/" className="text-lg font-semibold tracking-tight text-white">
-          Benefits.AI
-        </a>
-        <div className="flex items-center gap-2">
-          {!authLoading && !user && (
-            <button
-              onClick={() => setSignInOpen(true)}
-              className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-            >
-              Sign in
-            </button>
-          )}
-          <button
-            onClick={() => setDrawerOpen((o) => !o)}
-            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-          >
-            Results {drawerOpen ? '▲' : '▼'}
-          </button>
-        </div>
-      </header>
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
+      background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
+      color: 'var(--text)', fontFamily: 'var(--font-body)',
+    }}>
 
-      <ResultsDrawer
-        eligibility={eligibility}
-        schemes={schemes}
-        open={drawerOpen}
-        onToggle={() => setDrawerOpen((o) => !o)}
-        onAskMore={handleAskMore}
-        onAnswerInChat={handleAnswerInChat}
-      />
+      {/* ── Header (same as landing) ── */}
+      <AppHeader onToast={addToast} bordered />
 
+      {/* ── Message thread ── */}
       <MessageList
         messages={messages}
         chips={chips}
@@ -190,28 +173,64 @@ export function ChatPage({ schemes }: ChatPageProps) {
         onDismissGuidance={handleDismissGuidance}
       />
 
-      <div className="shrink-0 border-t border-gray-800 bg-gray-950 px-4 py-3">
-        <div className="mx-auto flex max-w-2xl gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Tell me about yourself…"
-            rows={1}
-            className="flex-1 resize-none rounded-xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-blue-600 focus:outline-none"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      {/* ── Composer dock ── */}
+      <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div
+            className="dock floating"
+            style={{
+              display: 'flex', alignItems: 'flex-end', gap: 6,
+              padding: '7px 8px 7px 18px',
+            }}
           >
-            Send
-          </button>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              placeholder="Reply to Benefits.AI…"
+              aria-label="Reply to Benefits.AI"
+              style={{
+                flex: 1, resize: 'none', border: 'none', outline: 'none', background: 'transparent',
+                fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: '24px',
+                color: 'var(--text)', padding: '7px 0', maxHeight: 132,
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingBottom: 1 }}>
+              <button
+                type="button"
+                className="wave-btn"
+                aria-label={voiceOn ? 'Voice input on' : 'Voice input'}
+                aria-pressed={voiceOn}
+                onClick={handleVoiceToggle}
+              >
+                <span className={`wave${voiceOn ? ' active' : ''}`} aria-hidden="true">
+                  <span /><span /><span /><span /><span />
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                aria-label="Send"
+                className="send-btn"
+                style={{ color: input.trim() && !isLoading ? 'var(--accent)' : 'var(--faint)' }}
+              >
+                <SendIcon size={20} />
+              </button>
+            </div>
+          </div>
+          <p style={{
+            textAlign: 'center', fontSize: 12, color: 'var(--faint)',
+            margin: '11px 0 0', lineHeight: 1.5,
+          }}>
+            Benefits.AI helps you explore what you may qualify for. It doesn&apos;t make formal determinations — the relevant agency does.
+          </p>
         </div>
       </div>
 
-      {/* Chat history — logged-in users only */}
+      {/* ── Chat history sidebar — logged-in users only ── */}
       {!authLoading && user && (
         <ChatHistory
           open={histOpen}
@@ -219,11 +238,11 @@ export function ChatPage({ schemes }: ChatPageProps) {
           chats={[]}
           activeId={null}
           onSelect={() => setHistOpen(false)}
-          onNew={() => setHistOpen(false)}
+          onNew={() => { setHistOpen(false); router.push('/') }}
         />
       )}
 
-      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   )
 }
