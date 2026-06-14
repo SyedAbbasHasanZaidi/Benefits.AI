@@ -1,8 +1,59 @@
+import React from 'react'
+
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
 }
+
+// ── Minimal markdown renderer ────────────────────────────────────────────────
+// Handles **bold**, *italic*, `code`, and line breaks. Avoids pulling in a
+// full markdown library — the LLM only uses these four markers reliably.
+
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  const out: React.ReactNode[] = []
+  // Tokeniser: matches **bold**, *italic*, `code`, or plain text run.
+  const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let idx = 0
+
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      out.push(<React.Fragment key={`${keyPrefix}-t${idx++}`}>{text.slice(last, m.index)}</React.Fragment>)
+    }
+    const tok = m[0]
+    if (tok.startsWith('**')) {
+      out.push(<strong key={`${keyPrefix}-b${idx++}`} style={{ fontWeight: 700, color: 'var(--text)' }}>{tok.slice(2, -2)}</strong>)
+    } else if (tok.startsWith('`')) {
+      out.push(
+        <code key={`${keyPrefix}-c${idx++}`} style={{
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.92em',
+          background: 'var(--bg)', padding: '1px 5px', borderRadius: 4,
+        }}>{tok.slice(1, -1)}</code>,
+      )
+    } else {
+      out.push(<em key={`${keyPrefix}-i${idx++}`}>{tok.slice(1, -1)}</em>)
+    }
+    last = m.index + tok.length
+  }
+  if (last < text.length) {
+    out.push(<React.Fragment key={`${keyPrefix}-t${idx++}`}>{text.slice(last)}</React.Fragment>)
+  }
+  return out
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split('\n')
+  return lines.map((line, i) => (
+    <React.Fragment key={i}>
+      {renderInline(line, `l${i}`)}
+      {i < lines.length - 1 && <br />}
+    </React.Fragment>
+  ))
+}
+
+// ── Assistant avatar ─────────────────────────────────────────────────────────
 
 function AssistantMark() {
   return (
@@ -15,6 +66,8 @@ function AssistantMark() {
     }}>B</div>
   )
 }
+
+// ── Bubble ───────────────────────────────────────────────────────────────────
 
 export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
   if (role === 'user') {
@@ -37,9 +90,9 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
       <AssistantMark />
       <div style={{
         paddingTop: 3, fontSize: 15.5, lineHeight: 1.62,
-        color: 'var(--text-soft)', whiteSpace: 'pre-wrap', flex: 1, minWidth: 0,
+        color: 'var(--text-soft)', flex: 1, minWidth: 0,
       }}>
-        {content}
+        {renderMarkdown(content)}
         {streaming && <span className="caret" />}
       </div>
     </div>

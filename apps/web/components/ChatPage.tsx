@@ -58,12 +58,9 @@ interface ChatPageProps {
   schemes: SchemeMetadata[]
 }
 
-const WELCOME_MESSAGE = {
-  id: 'welcome',
-  role: 'assistant' as const,
-  content:
-    "Hi! I'm Benefits.AI. Tell me a bit about yourself — your age, work situation, where you live, and whether you rent or own. I'll check what Australian government entitlements you may qualify for.",
-}
+// No welcome message — the user's first turn is the first thing in the thread.
+// If a user arrives at /chat directly (no initial message), the composer's
+// placeholder text serves as the prompt.
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -110,7 +107,7 @@ export function ChatPage(_: ChatPageProps) {
 
   const { messages, append, isLoading, data, setMessages } = useChat({
     api: '/api/chat',
-    initialMessages: restored?.messages && restored.messages.length > 0 ? restored.messages : [WELCOME_MESSAGE],
+    initialMessages: restored?.messages && restored.messages.length > 0 ? restored.messages : [],
     fetch: async (url, options) => {
       const body = JSON.parse((options?.body as string) ?? '{}') as Record<string, unknown>
       body.profile = profileRef.current
@@ -198,7 +195,7 @@ export function ChatPage(_: ChatPageProps) {
       if (!res.ok) throw new Error(`open ${res.status}`)
       const detail = await res.json()
       lastPersistedRef.current = new Set((detail.messages as { id: string }[]).map((m) => m.id))
-      setMessages(detail.messages.length > 0 ? detail.messages : [WELCOME_MESSAGE])
+      setMessages(detail.messages.length > 0 ? detail.messages : [])
       setProfile(detail.variables ?? {})
       setConversationId(c.id)
       if (detail.latestAssessment) {
@@ -329,7 +326,7 @@ export function ChatPage(_: ChatPageProps) {
 
   function restartAssessment() {
     sessionStorage.removeItem(SESSION_KEY)
-    setMessages([WELCOME_MESSAGE])
+    setMessages([])
     setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
     setResults(null)
     setStage('conversation')

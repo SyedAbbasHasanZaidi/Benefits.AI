@@ -62,6 +62,18 @@ const ENUM_CHIPS: Partial<Record<keyof ProfileVariables, string[]>> = {
   state: ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'],
 }
 
+// Bracket chips for numeric variables — gives users one-tap answers
+// instead of forcing them to type a number. The LLM extracts a sensible
+// midpoint when the user picks a bracket.
+const BRACKET_CHIPS: Partial<Record<keyof ProfileVariables, string[]>> = {
+  age:                   ['Under 18', '18–22', '23–34', '35–49', '50–66', '67+'],
+  annual_income:         ['Under $25k', '$25–45k', '$45–80k', '$80–120k', '$120k+'],
+  rent_paid_fortnightly: ['Under $300', '$300–500', '$500–800', '$800+'],
+  number_of_children:    ['0', '1', '2', '3', '4+'],
+  youngest_child_age:    ['Under 5', '5–12', '13–17', '18–21'],
+  hours_worked_per_week: ['Not working', 'Under 15', '15–30', '30–38', '38+'],
+}
+
 const QUESTION_TEXT: Record<keyof ProfileVariables, string> = {
   is_australian_resident: 'Are you an Australian resident or citizen?',
   age: 'How old are you?',
@@ -110,6 +122,8 @@ function buildQuestion(variable: keyof ProfileVariables): NextQuestion {
     chips = ['Yes', 'No']
   } else if (ENUM_CHIPS[variable]) {
     chips = [...(ENUM_CHIPS[variable] as string[])]
+  } else if (BRACKET_CHIPS[variable]) {
+    chips = [...(BRACKET_CHIPS[variable] as string[])]
   }
 
   const guidance = VARIABLE_GUIDANCE[variable]
@@ -257,6 +271,7 @@ Rules:
 - Use plain, warm language — no jargon
 - Never make definitive eligibility determinations — say "you may qualify" or "you appear eligible"
 - Do NOT invent rules, amounts, or conditions not present in the Official sources
+- Write in plain prose — DO NOT use markdown formatting like **bold**, *italic*, bullet lists, or headings. Just complete sentences.
 
 Current user profile:
 ${JSON.stringify(mergedProfile, null, 2)}
