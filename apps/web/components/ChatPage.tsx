@@ -372,7 +372,7 @@ export function ChatPage(_: ChatPageProps) {
   // Render Discovery / Results based on displayStage (lagged via view-anim)
   if (displayStage === 'discovering') {
     return (
-      <div style={{
+      <div className="chat-shell" style={{
         display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
@@ -388,7 +388,7 @@ export function ChatPage(_: ChatPageProps) {
 
   if (displayStage === 'results' && results) {
     return (
-      <div style={{
+      <div className="chat-shell" style={{
         display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
@@ -406,7 +406,7 @@ export function ChatPage(_: ChatPageProps) {
   }
 
   return (
-    <div style={{
+    <div className="chat-shell" style={{
       display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
       background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
       color: 'var(--text)', fontFamily: 'var(--font-body)',

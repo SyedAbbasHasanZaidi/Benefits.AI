@@ -74,6 +74,8 @@ export function LandingPage() {
   const [phIndex, setPhIndex] = useState(0)
   const [phVis, setPhVis] = useState(true)
   const [histOpen, setHistOpen] = useState(false)
+  const [navigatingAway, setNavigatingAway] = useState(false)
+  const navAwayRef = useRef(false)
   const heroRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -94,7 +96,12 @@ export function LandingPage() {
     }, 0)
   }
 
-  function exitFocus() { setShift(0); setFocused(false) }
+  function exitFocus() {
+    // Hold the focused state through a navigation away — prevents the input
+    // from snapping back to its centred position while the page is fading out.
+    if (navAwayRef.current) return
+    setShift(0); setFocused(false)
+  }
 
   function fillPrompt(text: string) {
     // Append with a space if there's existing user text, otherwise just fill.
@@ -117,7 +124,11 @@ export function LandingPage() {
     const text = input.trim()
     if (!text) return
     sessionStorage.setItem('benefits_initial_message', text)
-    router.push('/chat')
+    // Hold focus state and play the exit transition before navigating away —
+    // keeps continuity between the lifted/dimmed input and the chat view.
+    navAwayRef.current = true
+    setNavigatingAway(true)
+    setTimeout(() => router.push('/chat'), 280)
   }
 
   function onHeroKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -153,7 +164,7 @@ export function LandingPage() {
   }
 
   return (
-    <div className={`landing-shell${focused ? ' input-focused' : ''}`}>
+    <div className={`landing-shell${focused ? ' input-focused' : ''}${navigatingAway ? ' navigating-away' : ''}`}>
 
       {/* ── Header ── */}
       <div className="dimmable" style={{ '--d': '0ms' } as React.CSSProperties}>
