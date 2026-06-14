@@ -13,6 +13,7 @@ import { ChatHistory } from './ChatHistory'
 import { MessageList } from './MessageList'
 import { Discovery } from './Discovery'
 import { Results } from './Results'
+import { DiscoveryOrb } from './DiscoveryOrb'
 import type { ResultsData } from '@/lib/eligibility/types'
 import type { ConversationSummary } from '@/lib/conversations/types'
 import type { ChatItem } from './ChatHistory'
@@ -93,6 +94,8 @@ export function ChatPage(_: ChatPageProps) {
   const [voiceOn, setVoiceOn] = useState(false)
   const [input, setInput] = useState('')
   const [stage, setStage] = useState<Stage>('conversation')
+  const [displayStage, setDisplayStage] = useState<Stage>('conversation')
+  const [leaving, setLeaving] = useState(false)
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
@@ -122,6 +125,19 @@ export function ChatPage(_: ChatPageProps) {
       saveSession({ messages, profile, chips, guidance, lastAskedVariable, eligibility })
     }
   }, [messages, profile, chips, guidance, lastAskedVariable, eligibility])
+
+  // ── Stage transition (fade/scale/blur out → swap → in) ────────────────────
+  // Mirrors the design's view-anim pattern so jumps between conversation,
+  // discovering, and results feel like one continuous workspace.
+  useEffect(() => {
+    if (stage === displayStage) return
+    setLeaving(true)
+    const t = setTimeout(() => {
+      setDisplayStage(stage)
+      setLeaving(false)
+    }, 260)
+    return () => clearTimeout(t)
+  }, [stage, displayStage])
 
   // Auto-send initial message from landing page, or open a saved conversation
   useEffect(() => {
@@ -335,13 +351,26 @@ export function ChatPage(_: ChatPageProps) {
     router.push('/')
   }
 
-  // Show "See my matches" CTA when we have at least 4 user turns + some eligibility data
-  const userTurns = messages.filter((m) => m.role === 'user').length
-  const hasEligibilitySignal = (eligibility?.eligible.length ?? 0) + (eligibility?.needs_info.length ?? 0) > 0
-  const canAssess = userTurns >= 3 && hasEligibilitySignal && stage === 'conversation'
+  // ── Discovery orb level — proximity to first eligible scheme ──────────────
+  // The "See my matches" button is gone; the orb signals progress instead.
+  // Computed from the rules engine's needs_info: fewer missing variables for
+  // any one scheme = orb closer to full.
+  const orbState = (() => {
+    if (!eligibility) return { level: 0, eligible: false }
+    if (eligibility.eligible.length > 0) return { level: 1, eligible: true }
+    let best = 0
+    for (const item of eligibility.needs_info) {
+      const missing = item.missingVars.length
+      // Heuristic: each remaining variable knocks ~25% off the fill, capped to 0
+      const p = Math.max(0, 1 - missing / 4)
+      if (p > best) best = p
+    }
+    return { level: best, eligible: false }
+  })()
+  const showOrb = stage === 'conversation' && (orbState.eligible || orbState.level > 0.05)
 
-  // Render Discovery / Results based on stage
-  if (stage === 'discovering') {
+  // Render Discovery / Results based on displayStage (lagged via view-anim)
+  if (displayStage === 'discovering') {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
@@ -349,24 +378,28 @@ export function ChatPage(_: ChatPageProps) {
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
         <AppHeader onToast={addToast} />
-        <Discovery done={false} />
+        <div className={`view-anim${leaving ? ' leaving' : ''}`}>
+          <Discovery done={false} />
+        </div>
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>
     )
   }
 
-  if (stage === 'results' && results) {
+  if (displayStage === 'results' && results) {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
-        <Results
-          data={results}
-          onRestart={restartAssessment}
-          onBack={() => setStage('conversation')}
-        />
+        <div className={`view-anim${leaving ? ' leaving' : ''}`}>
+          <Results
+            data={results}
+            onRestart={restartAssessment}
+            onBack={() => setStage('conversation')}
+          />
+        </div>
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>
     )
@@ -382,36 +415,21 @@ export function ChatPage(_: ChatPageProps) {
       {/* ── Header (same as landing) ── */}
       <AppHeader onToast={addToast} />
 
-      {/* ── Message thread ── */}
-      <MessageList
-        messages={messages}
-        chips={chips}
-        guidance={guidance}
-        showGuidance={showGuidance}
-        isLoading={isLoading}
-        onChipClick={handleChipClick}
-        onDismissGuidance={handleDismissGuidance}
-      />
-
-      {/* ── "See my matches" CTA — appears when enough info gathered ── */}
-      {canAssess && (
-        <div style={{ padding: '0 26px 12px', flexShrink: 0 }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={runAssessment}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'var(--accent)', color: 'var(--accent-ink)',
-                border: 'none', borderRadius: 12, padding: '10px 18px',
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                fontFamily: 'var(--font-body)', boxShadow: 'var(--shadow-md)',
-              }}
-            >
-              See my matches →
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ── Message thread (wrapped for smooth stage transitions) ── */}
+      <div
+        className={`view-anim${leaving ? ' leaving' : ''}`}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+      >
+        <MessageList
+          messages={messages}
+          chips={chips}
+          guidance={guidance}
+          showGuidance={showGuidance}
+          isLoading={isLoading}
+          onChipClick={handleChipClick}
+          onDismissGuidance={handleDismissGuidance}
+        />
+      </div>
 
       {/* ── Composer dock ── */}
       <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
@@ -479,6 +497,15 @@ export function ChatPage(_: ChatPageProps) {
           activeId={conversationId}
           onSelect={openConversation}
           onNew={() => { setHistOpen(false); restartAssessment() }}
+        />
+      )}
+
+      {/* ── Discovery orb — water-fill proximity indicator ── */}
+      {showOrb && (
+        <DiscoveryOrb
+          level={orbState.level}
+          eligible={orbState.eligible}
+          onClick={runAssessment}
         />
       )}
 
