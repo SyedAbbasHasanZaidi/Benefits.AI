@@ -216,12 +216,28 @@ function ProgramModal({ program, onClose, onRefineProfile }: {
 interface ResultsProps {
   data: ResultsData
   onRestart: () => void
+  /** Optional — back to conversation. If omitted, back goes to landing. */
+  onBack?: () => void
 }
 
-export function Results({ data, onRestart }: ResultsProps) {
+function ChevronLeft({ size = 19 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" width={size} height={size}
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m14 6-6 6 6 6" />
+    </svg>
+  )
+}
+
+export function Results({ data, onRestart, onBack }: ResultsProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [openProgram, setOpenProgram] = useState<Program | null>(null)
+
+  function handleBack() {
+    if (onBack) onBack()
+    else router.push('/')
+  }
 
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 40)
@@ -231,20 +247,21 @@ export function Results({ data, onRestart }: ResultsProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-      {/* Local header — back to start + "New assessment" */}
+      {/* Local header — borderless back arrow + "New assessment", matches landing's transparent header style */}
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 22px', flexShrink: 0,
+        padding: '14px 20px', flexShrink: 0, background: 'transparent',
       }}>
         <button
-          onClick={() => router.push('/')}
+          onClick={handleBack}
+          aria-label="Back to chat"
+          className="menu-trigger"
           style={{
-            background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'baseline',
-            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 19, letterSpacing: '-0.03em',
-            color: 'var(--text)', cursor: 'pointer',
+            width: 38, height: 38, borderRadius: 11, border: 'none', background: 'transparent',
+            color: 'var(--text-soft)', display: 'grid', placeItems: 'center', cursor: 'pointer',
           }}
         >
-          Benefits<span style={{ color: 'var(--accent)' }}>.AI</span>
+          <ChevronLeft size={19} />
         </button>
         <button onClick={onRestart} className="new-chat-btn" style={{
           display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)',

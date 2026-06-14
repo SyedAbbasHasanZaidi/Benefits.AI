@@ -348,7 +348,7 @@ export function ChatPage(_: ChatPageProps) {
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
-        <AppHeader onToast={addToast} bordered />
+        <AppHeader onToast={addToast} />
         <Discovery done={false} />
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>
@@ -362,7 +362,11 @@ export function ChatPage(_: ChatPageProps) {
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
-        <Results data={results} onRestart={restartAssessment} />
+        <Results
+          data={results}
+          onRestart={restartAssessment}
+          onBack={() => setStage('conversation')}
+        />
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>
     )
@@ -376,7 +380,7 @@ export function ChatPage(_: ChatPageProps) {
     }}>
 
       {/* ── Header (same as landing) ── */}
-      <AppHeader onToast={addToast} bordered />
+      <AppHeader onToast={addToast} />
 
       {/* ── Message thread ── */}
       <MessageList
