@@ -10,6 +10,8 @@ export interface SchemeMetadata {
   apply_url: string
   delivery_channel: string
   plain_description: string
+  /** Variable IDs the rules engine needs to evaluate this scheme. */
+  required_inputs?: string[]
 }
 
 export type SchemeStatus = 'eligible' | 'needs_info' | 'ineligible'

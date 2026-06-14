@@ -13,7 +13,7 @@ import { ChatHistory } from './ChatHistory'
 import { MessageList } from './MessageList'
 import { Discovery } from './Discovery'
 import { Results } from './Results'
-import { DiscoveryOrb } from './DiscoveryOrb'
+import EligibilityMeter from './EligibilityMeter'
 import type { ResultsData } from '@/lib/eligibility/types'
 import type { ConversationSummary } from '@/lib/conversations/types'
 import type { ChatItem } from './ChatHistory'
@@ -76,7 +76,7 @@ function SendIcon({ size = 20 }: { size?: number }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export function ChatPage(_: ChatPageProps) {
+export function ChatPage({ schemes }: ChatPageProps) {
   const router = useRouter()
   const { user, isLoading: authLoading } = useAuth()
   const { toasts, addToast, dismiss } = useToasts()
@@ -351,23 +351,38 @@ export function ChatPage(_: ChatPageProps) {
     router.push('/')
   }
 
-  // ── Discovery orb level — proximity to first eligible scheme ──────────────
-  // The "See my matches" button is gone; the orb signals progress instead.
-  // Computed from the rules engine's needs_info: fewer missing variables for
-  // any one scheme = orb closer to full.
-  const orbState = (() => {
-    if (!eligibility) return { level: 0, eligible: false }
-    if (eligibility.eligible.length > 0) return { level: 1, eligible: true }
-    let best = 0
-    for (const item of eligibility.needs_info) {
-      const missing = item.missingVars.length
-      // Heuristic: each remaining variable knocks ~25% off the fill, capped to 0
-      const p = Math.max(0, 1 - missing / 4)
-      if (p > best) best = p
+  // ── EligibilityMeter signal — closest match + 0–100 score ─────────────────
+  // Maps the rules engine output to the meter's contract:
+  //   - if any scheme is verified eligible → 100 + that scheme's name
+  //   - else find the needs_info scheme with the smallest missing list,
+  //     score = ((required - missing) / required) * 100
+  // Hidden when there's no signal yet (i.e. no eligibility payload at all).
+  const meterState = (() => {
+    if (!eligibility) return { value: 0, scheme: '', show: false }
+
+    const schemeName = (id: string): string =>
+      schemes.find((s) => s.id === id)?.name ?? id
+
+    if (eligibility.eligible.length > 0) {
+      return { value: 100, scheme: schemeName(eligibility.eligible[0]), show: true }
     }
-    return { level: best, eligible: false }
+
+    // Closest needs_info scheme = highest progress = lowest missing/required ratio
+    let best = { value: 0, schemeId: '' as string }
+    for (const item of eligibility.needs_info) {
+      const scheme = schemes.find((s) => s.id === item.schemeId) as
+        (typeof schemes)[number] & { required_inputs?: string[] } | undefined
+      const required = scheme?.required_inputs?.length ?? 4 // fallback heuristic
+      const missing = item.missingVars.length
+      const provided = Math.max(0, required - missing)
+      const score = Math.round((provided / required) * 100)
+      if (score > best.value) best = { value: score, schemeId: item.schemeId }
+    }
+
+    if (!best.schemeId) return { value: 0, scheme: '', show: false }
+    return { value: best.value, scheme: schemeName(best.schemeId), show: true }
   })()
-  const showOrb = stage === 'conversation' && (orbState.eligible || orbState.level > 0.05)
+  const showMeter = stage === 'conversation' && meterState.show
 
   // Render Discovery / Results based on displayStage (lagged via view-anim)
   if (displayStage === 'discovering') {
@@ -430,6 +445,28 @@ export function ChatPage(_: ChatPageProps) {
           onDismissGuidance={handleDismissGuidance}
         />
       </div>
+
+      {/* ── Eligibility meter — water-fill proximity gauge above composer ── */}
+      {showMeter && (
+        <div style={{ padding: '0 26px 4px', flexShrink: 0 }}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <div
+              style={{ width: '75%', margin: '0 auto 12px', cursor: 'pointer' }}
+              onClick={runAssessment}
+              role="button"
+              aria-label="View matches"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); runAssessment() } }}
+            >
+              <EligibilityMeter
+                value={meterState.value}
+                scheme={meterState.scheme}
+                accent="var(--accent)"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Composer dock ── */}
       <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
@@ -497,15 +534,6 @@ export function ChatPage(_: ChatPageProps) {
           activeId={conversationId}
           onSelect={openConversation}
           onNew={() => { setHistOpen(false); restartAssessment() }}
-        />
-      )}
-
-      {/* ── Discovery orb — water-fill proximity indicator ── */}
-      {showOrb && (
-        <DiscoveryOrb
-          level={orbState.level}
-          eligible={orbState.eligible}
-          onClick={runAssessment}
         />
       )}
 
