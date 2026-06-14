@@ -82,12 +82,18 @@ function loadCorpusFile(path: string): CorpusFile | null {
   if (rel.startsWith('/nsw/')) tier = 'state'
   else if (rel.startsWith('/councils/')) tier = 'council'
 
+  // gray-matter auto-parses YAML dates into JS Date objects — convert to ISO string
+  const lv = data.last_verified
+  const lastVerified = lv instanceof Date
+    ? lv.toISOString().slice(0, 10)
+    : String(lv)
+
   return {
     path,
     schemeId: String(data.scheme_id),
     tier,
     sourceUrl: String(data.source_url),
-    lastVerified: String(data.last_verified),
+    lastVerified,
     body: content.trim(),
   }
 }
@@ -137,7 +143,7 @@ function splitIntoChunks(body: string): string[] {
 // ── Embedding with rate-limit handling ───────────────────────────────────────
 
 const BATCH_SIZE = 8 // Voyage allows up to 128; stay conservative
-const DELAY_MS = 300 // Pause between batches to respect rate limits
+const DELAY_MS = 21000 // 21s between batches — handles Voyage free tier 3 RPM limit
 
 async function embedBatch(texts: string[]): Promise<number[][]> {
   const result = await voyage.embed({ input: texts, model: 'voyage-3' })
@@ -149,10 +155,9 @@ function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)) }
 // ── Upsert ────────────────────────────────────────────────────────────────────
 
 function chunkId(schemeId: string, index: number, text: string): string {
-  return createHash('sha256')
-    .update(`${schemeId}:${index}:${text}`)
-    .digest('hex')
-    .slice(0, 16)
+  const h = createHash('sha256').update(`${schemeId}:${index}:${text}`).digest('hex')
+  // Format as valid UUID: 8-4-4-4-12
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`
 }
 
 async function upsertChunks(file: CorpusFile, chunks: string[], embeddings: number[][]) {
