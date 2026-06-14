@@ -6,6 +6,9 @@ import type { JSONValue } from 'ai'
 import { mergeProfile, type ProfileVariables } from '@/lib/orchestrator/profile'
 import type { EligibilityResult } from '@/lib/orchestrator/turn'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
+import { useAuth } from '@/lib/auth/context'
+import { ChatHistory } from './ChatHistory'
+import { SignInModal } from './SignInModal'
 import { ResultsDrawer } from './ResultsDrawer'
 import { MessageList } from './MessageList'
 import type { SchemeMetadata } from './SchemeCard'
@@ -30,6 +33,7 @@ const WELCOME_MESSAGE = {
 }
 
 export function ChatPage({ schemes }: ChatPageProps) {
+  const { user, isLoading: authLoading } = useAuth()
   const [profile, setProfile] = useState<ProfileVariables>({})
   const [eligibility, setEligibility] = useState<EligibilityResult | null>(null)
   const [chips, setChips] = useState<string[]>([])
@@ -37,8 +41,11 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [lastAskedVariable, setLastAskedVariable] = useState<keyof ProfileVariables | null>(null)
   const [showGuidance, setShowGuidance] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [histOpen, setHistOpen] = useState(false)
+  const [signInOpen, setSignInOpen] = useState(false)
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const initialSentRef = useRef(false)
 
   const profileRef = useRef(profile)
   const lastAskedRef = useRef(lastAskedVariable)
@@ -55,6 +62,18 @@ export function ChatPage({ schemes }: ChatPageProps) {
       return fetch(url, { ...options, body: JSON.stringify(body) })
     },
   })
+
+  // Auto-send the message the user typed on the landing page.
+  // Runs once after mount; append is stable in the AI SDK.
+  useEffect(() => {
+    if (initialSentRef.current) return
+    const msg = sessionStorage.getItem('benefits_initial_message')
+    if (!msg) return
+    initialSentRef.current = true
+    sessionStorage.removeItem('benefits_initial_message')
+    void append({ role: 'user', content: msg })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!data || data.length === 0) return
@@ -134,12 +153,22 @@ export function ChatPage({ schemes }: ChatPageProps) {
         <a href="/" className="text-lg font-semibold tracking-tight text-white">
           Benefits.AI
         </a>
-        <button
-          onClick={() => setDrawerOpen((o) => !o)}
-          className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-        >
-          Results {drawerOpen ? '▲' : '▼'}
-        </button>
+        <div className="flex items-center gap-2">
+          {!authLoading && !user && (
+            <button
+              onClick={() => setSignInOpen(true)}
+              className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+            >
+              Sign in
+            </button>
+          )}
+          <button
+            onClick={() => setDrawerOpen((o) => !o)}
+            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+          >
+            Results {drawerOpen ? '▲' : '▼'}
+          </button>
+        </div>
       </header>
 
       <ResultsDrawer
@@ -181,6 +210,20 @@ export function ChatPage({ schemes }: ChatPageProps) {
           </button>
         </div>
       </div>
+
+      {/* Chat history — logged-in users only */}
+      {!authLoading && user && (
+        <ChatHistory
+          open={histOpen}
+          onToggle={() => setHistOpen((o) => !o)}
+          chats={[]}
+          activeId={null}
+          onSelect={() => setHistOpen(false)}
+          onNew={() => setHistOpen(false)}
+        />
+      )}
+
+      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
     </div>
   )
 }

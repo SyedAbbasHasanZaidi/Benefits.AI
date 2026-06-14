@@ -120,6 +120,69 @@ Simple typed record. Merged incrementally as the LLM extracts values. Persisted 
 ### `extract.ts`
 Single LLM call (non-streaming, `generate()` from `BedrockClaudeProvider`) with a structured extraction prompt. Input: raw user message + current profile. Output: JSON diff of newly extracted variables. The extraction prompt enumerates all 16 variable names and their types so the LLM cannot invent new ones (schema-locked, consistent with the existing design pattern).
 
+The prompt includes **four few-shot examples** chosen to cover the critical edge cases: noisy messages, implicit signals, chip responses, and the nothing-to-extract case. Examples are placed before the live input so the model sees the pattern before it has to apply it.
+
+```
+System:
+You extract eligibility variables from a user message. Return ONLY a JSON object
+containing variables you can extract with confidence. Omit variables that are not
+clearly stated or strongly implied. Do not guess. Do not add keys outside this schema.
+
+Schema (extract only these keys):
+  is_australian_resident  boolean
+  age                     number
+  annual_income           number          (annual AUD)
+  state                   string          (e.g. "NSW", "VIC")
+  council_lga             string          (e.g. "Blacktown", "Sydney")
+  tenure_type             "renting" | "owner" | "boarding"
+  rent_paid_fortnightly   number          (AUD per fortnight)
+  number_of_children      number
+  youngest_child_age      number
+  has_partner             boolean
+  employment_status       "employed" | "retired" | "unemployed" | "student"
+  hours_worked_per_week   number
+  has_disability          boolean
+  is_carer                boolean
+  has_financial_hardship  boolean
+  uses_life_support_equipment boolean
+
+Current profile (already known — do NOT re-extract these):
+{currentProfile}
+
+---
+
+Example 1 — explicit info mixed with irrelevant noise:
+User: "I'm 68, retired, renting in Blacktown for $400 a fortnight. I love gardening."
+Output: {"age":68,"employment_status":"retired","tenure_type":"renting","council_lga":"Blacktown","state":"NSW","rent_paid_fortnightly":400}
+
+Example 2 — implicit signal ("on the pension" implies retired + likely age):
+User: "I've been on the age pension for two years, I live alone in Victoria."
+Output: {"employment_status":"retired","has_partner":false,"state":"VIC"}
+Note: age is NOT extracted — "on the age pension" implies 67+ but the exact age is unconfirmed.
+
+Example 3 — chip/short answer with no prose context (user clicked "Yes"):
+User: "Yes"
+Output: {}
+Note: "Yes" has no extractable meaning without knowing which question it answers.
+      The orchestrator handles chip answers separately before calling extract.
+
+Example 4 — nothing extractable:
+User: "What kind of help can I get?"
+Output: {}
+
+---
+
+Now extract from:
+User: {userMessage}
+Output:
+```
+
+**Why these four examples:**
+- Example 1 establishes the noise-filtering behaviour — irrelevant prose ("I love gardening") produces no keys.
+- Example 2 establishes the implicit-but-not-certain rule — "on the pension" implies `employment_status` but not a specific `age` value, so age is withheld.
+- Example 3 prevents the model from hallucinating meaning into chip responses; the orchestrator maps chip values to profile variables directly before calling `extract`.
+- Example 4 sets the floor — an empty object is a valid and expected output.
+
 ### `turn.ts` — the core orchestration loop
 
 ```
@@ -128,8 +191,14 @@ turn(userMessage, currentProfile, conversationHistory):
   2. mergedProfile = merge(currentProfile, profileDelta)
   3. rulesResult = POST /api/rules/calculate { variables: mergedProfile }
   4. missingVars = rulesResult.missing_variables
-  5. nextQuestion = pickNextQuestion(missingVars, mergedProfile)
-  6. corpusChunks = retriever.query(userMessage + nextQuestion, topK=4)
+  5. nextQuestion = pickNextQuestion(missingVars, mergedProfile, conversationHistory)
+  6. corpusChunks = retriever.query(
+       query: synthesiseQuery(mergedProfile, rulesResult.eligible + rulesResult.missing_variables),
+       scheme_ids: rulesResult.eligible + rulesResult.missing_variables,
+       topK=4
+     )
+     // synthesiseQuery builds a clean string from extracted variables + scheme IDs only.
+     // Raw userMessage is never used as the query — noisy user prose degrades embedding quality.
   7. stream LLM response(
        system: buildSystemPrompt(mergedProfile, rulesResult, corpusChunks),
        history: conversationHistory,
@@ -139,11 +208,165 @@ turn(userMessage, currentProfile, conversationHistory):
      alongside the text stream so the client can update React state
 ```
 
-`pickNextQuestion` prioritises variables that would unlock the most schemes still in `missing_variables`. It returns a natural-language question string + optional chip hints.
+`pickNextQuestion` selects the next variable to ask about using a **three-tier priority order**:
+
+**Tier 1 — Baseline variables (always asked first, in order)**
+These are collected before any scheme-specific questions because they gate the largest number of schemes and define the user's fundamental eligibility surface. Asked in this fixed sequence regardless of what schemes are in play:
+```
+1. is_australian_resident   (gates almost everything)
+2. age                      (gates Age Pension, Youth Allowance, many others)
+3. employment_status        (gates JobSeeker, Carer Payment, etc.)
+4. state                    (determines which state + council tier applies)
+5. tenure_type              (gates Rent Assistance, housing concessions)
+```
+A baseline variable is skipped if already present in `mergedProfile`.
+
+**Tier 2 — Scheme-intent mode (greedy suppressed)**
+If the conversation history contains a user message that names or clearly refers to a specific scheme (e.g. "tell me about Age Pension", "am I eligible for the seniors card"), `pickNextQuestion` enters scheme-intent mode:
+- Identifies the referenced scheme from a keyword/scheme-ID lookup against the conversation history
+- Asks only the `missing_variables` for that scheme, in the order the rules engine returns them
+- Does NOT greedily jump to variables that would unlock other schemes
+- Exits scheme-intent mode once all that scheme's variables are filled or the user changes topic
+
+**Tier 3 — Greedy (default)**
+Once all baseline variables are collected and no scheme-intent is active, pick the missing variable that appears in the most schemes still in `missing_variables` (i.e. maximises schemes that could move from needs-info → eligible). Ties broken by the fixed baseline order above.
+
+`pickNextQuestion` returns:
+```typescript
+{
+  question: string
+  variable: keyof ProfileVariables
+  chips?: string[]           // includes "Not sure?" chip for any variable that has guidance
+  guidance?: {
+    explanation: string      // plain-English definition of what this variable means
+    links: { label: string, url: string }[]  // official sources where user can find this info
+  }
+}
+```
 
 **Binary chip triggers** (always render chips): `is_australian_resident`, `has_disability`, `is_carer`, `has_partner`, `has_financial_hardship`, `uses_life_support_equipment`  
 **Enum chip triggers** (render chips): `tenure_type`, `employment_status`, `state`  
 **Numeric inputs** (no chips, free text): `age`, `annual_income`, `rent_paid_fortnightly`, `number_of_children`, `youngest_child_age`, `hours_worked_per_week`
+
+**"Not sure?" chip**: Every question that has a `guidance` entry appends a "Not sure? →" chip alongside the normal chips (or alone for numeric inputs). Selecting it renders a `GuidanceCard` inline in the chat — NOT a new AI message — with the explanation and links. The profile variable remains unset; the same question is re-asked after the user reads the guidance.
+
+### `VARIABLE_GUIDANCE` — static lookup map
+
+Defined in `lib/orchestrator/guidance.ts`. Maps each variable to plain-English context and authoritative links. Variables the user is universally expected to know (`age`, `has_partner`, `number_of_children`) have no guidance entry and therefore no "Not sure?" chip.
+
+```typescript
+const VARIABLE_GUIDANCE: Partial<Record<keyof ProfileVariables, VariableGuidance>> = {
+
+  is_australian_resident: {
+    explanation: "This means you hold Australian citizenship, a permanent visa, or certain protected visas. Temporary visa holders generally don't qualify for Centrelink payments.",
+    links: [
+      { label: "Check your visa type — Home Affairs", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing" },
+      { label: "Residence rules for payments — Services Australia", url: "https://www.servicesaustralia.gov.au/residence-descriptions" },
+    ]
+  },
+
+  annual_income: {
+    explanation: "Your total income before tax for the current financial year — including wages, investment income, and government payments. Centrelink uses your combined household income if you have a partner.",
+    links: [
+      { label: "View your income statement — myGov / ATO", url: "https://my.gov.au" },
+      { label: "What counts as income — Services Australia", url: "https://www.servicesaustralia.gov.au/income-and-assets" },
+    ]
+  },
+
+  council_lga: {
+    explanation: "Your Local Government Area — the council responsible for where you live. This determines which council concession schemes you may qualify for.",
+    links: [
+      { label: "Find your LGA — Local Government Directory", url: "https://www.localgovernment.nsw.gov.au/find-your-council" },
+      { label: "Find your council — NSW Government", url: "https://www.nsw.gov.au/find-your-council" },
+    ]
+    // GAP: links are NSW-specific. If scope expands beyond NSW, guidance.ts must branch on
+    // profile.state to serve the correct state's council finder URL. Currently safe because
+    // council schemes are NSW-only in MVP.
+  },
+
+  rent_paid_fortnightly: {
+    explanation: "The rent you pay every two weeks (fortnightly). Check your lease agreement or rental receipts. If you pay weekly, multiply by 2.",
+    links: [
+      { label: "Understanding your lease — NSW Fair Trading", url: "https://www.fairtrading.nsw.gov.au/housing-and-property/renting" },
+    ]
+  },
+
+  has_disability: {
+    explanation: "Whether you have a physical, intellectual, or psychiatric condition that substantially reduces your ability to work or participate in daily life. You don't need a formal diagnosis — self-assessment is the starting point.",
+    links: [
+      { label: "Disability Support Pension eligibility — Services Australia", url: "https://www.servicesaustralia.gov.au/disability-support-pension" },
+      { label: "What counts as a disability — NDIS", url: "https://www.ndis.gov.au/applying-access-ndis/am-i-eligible" },
+    ]
+  },
+
+  is_carer: {
+    explanation: "Whether you provide regular, ongoing care to someone with a disability, serious illness, or frailty due to age. This includes caring for a family member or friend — formal registration is not required.",
+    links: [
+      { label: "Carer recognition — Carer Gateway", url: "https://www.carergateway.gov.au/am-i-a-carer" },
+      { label: "Carer Payment eligibility — Services Australia", url: "https://www.servicesaustralia.gov.au/carer-payment" },
+    ]
+  },
+
+  has_financial_hardship: {
+    explanation: "Whether you're struggling to meet basic living costs — for example, difficulty paying rent, utilities, or food. There's no formal threshold; it's based on your circumstances.",
+    links: [
+      { label: "Financial hardship assistance — Services Australia", url: "https://www.servicesaustralia.gov.au/if-you-are-in-financial-crisis-or-emergency" },
+      { label: "National Debt Helpline", url: "https://ndh.org.au" },
+    ]
+  },
+
+  uses_life_support_equipment: {
+    explanation: "Whether anyone in your household depends on electrically powered medical equipment — such as a ventilator, oxygen concentrator, or dialysis machine. Your energy retailer needs to be notified separately.",
+    links: [
+      { label: "Life support registration — AER", url: "https://www.aer.gov.au/consumers/my-energy-contract/life-support-protections" },
+      { label: "Medical Energy Rebate — NSW Government", url: "https://www.service.nsw.gov.au/transaction/apply-for-the-medical-energy-rebate" },
+    ]
+  },
+
+  hours_worked_per_week: {
+    explanation: "The average number of hours you work each week across all jobs. Check your employment contract or recent payslips.",
+    links: [
+      { label: "Fair Work — understanding your hours", url: "https://www.fairwork.gov.au/employee-entitlements/hours-of-work-breaks-and-rosters" },
+    ]
+  },
+
+  employment_status: {
+    explanation: "Your current work situation: employed (working for pay), retired (stopped working, typically at pension age), unemployed (looking for work), or student (studying full-time).",
+    links: [
+      { label: "Job seeker payments — Services Australia", url: "https://www.servicesaustralia.gov.au/payments-while-looking-for-work" },
+    ]
+  },
+
+  tenure_type: {
+    explanation: "Whether you rent your home, own it (with or without a mortgage), or board with someone else. Check your lease or property title if unsure.",
+    links: [
+      { label: "Renting vs owning — MoneySmart", url: "https://moneysmart.gov.au/living-costs/renting-vs-buying" },
+    ]
+  },
+}
+```
+
+### `components/GuidanceCard`
+
+Inline component rendered in the chat when the user clicks "Not sure? →". Sits between the AI question bubble and the input — not a new AI message turn.
+
+```
++------------------------------------------------+
+|  ℹ️  What is "annual income"?                  |
+|                                                |
+|  Your total income before tax for the current  |
+|  financial year — including wages, investment  |
+|  income, and government payments.              |
+|                                                |
+|  Where to find this:                           |
+|  → View your income statement — myGov / ATO   |
+|  → What counts as income — Services Australia |
+|                                                |
+|  [ Got it — I'll answer now ]                  |
++------------------------------------------------+
+```
+
+"Got it — I'll answer now" dismisses the card and re-focuses the chat input. The question remains active.
 
 ---
 
@@ -199,8 +422,12 @@ pickNextQuestion(missing) ──▶ "Are you an Australian resident?"
                                chips: ["Yes","No"]
          │
          ▼
-retriever.query("68 retired renting Sydney Are you an Australian resident?", topK=4)
-  ──▶ [corpus chunks about Age Pension, Rent Assistance, Seniors Card...]
+retriever.query(
+  query: "age:68 employment_status:retired tenure_type:renting state:NSW rent_paid_fortnightly:400 — AGE_PENSION RENT_ASSISTANCE NSW_SENIORS_CARD",
+  scheme_ids: ["AGE_PENSION", "RENT_ASSISTANCE", "NSW_SENIORS_CARD", ...],
+  topK: 4
+)
+  ──▶ [corpus chunks scoped to eligible/needs-info schemes only]
          │
          ▼
 LLM stream (text) ──▶ "Found 5 possible schemes for you!
@@ -233,9 +460,11 @@ Client merges StreamData:
 - `apps/web/components/QuickReplyChips.tsx`
 - `apps/web/components/ResultsDrawer.tsx`
 - `apps/web/components/SchemeCard.tsx`
+- `apps/web/components/GuidanceCard.tsx`
 - `apps/web/lib/orchestrator/profile.ts`
 - `apps/web/lib/orchestrator/extract.ts`
 - `apps/web/lib/orchestrator/turn.ts`
+- `apps/web/lib/orchestrator/guidance.ts`
 - `apps/web/lib/retriever/embed.ts`
 - `apps/web/lib/retriever/query.ts`
 

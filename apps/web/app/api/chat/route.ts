@@ -1,17 +1,15 @@
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
+import { createAnthropic } from '@ai-sdk/anthropic'
 import { StreamData, streamText } from 'ai'
 import { NextResponse } from 'next/server'
-import { BedrockClaudeProvider } from '@/lib/llm/BedrockClaudeProvider'
+import { AnthropicProvider } from '@/lib/llm/AnthropicProvider'
 import { mapChipToVariable, prepareTurn } from '@/lib/orchestrator/turn'
 import type { ProfileVariables } from '@/lib/orchestrator/profile'
 
-const bedrock = createAmazonBedrock({
-  region: process.env.AWS_REGION ?? 'ap-southeast-2',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+const anthropic = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-5-20250514-v1:0'
+const MODEL_ID = process.env.ANTHROPIC_MODEL_ID ?? 'claude-sonnet-4-6'
 
 export async function POST(req: Request) {
   let body: {
@@ -44,7 +42,8 @@ export async function POST(req: Request) {
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
-  const llm = new BedrockClaudeProvider()
+  // Haiku for extraction (cheap structured JSON) — Sonnet handles the user-facing stream below.
+  const llm = new AnthropicProvider('claude-haiku-4-5-20251001')
   const ctx = await prepareTurn(userMessage, profile, history, llm, chipDelta)
 
   const data = new StreamData()
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
     .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
   const result = streamText({
-    model: bedrock(MODEL_ID),
+    model: anthropic(MODEL_ID),
     system: ctx.systemPrompt,
     messages: coreMessages,
     maxTokens: 512,

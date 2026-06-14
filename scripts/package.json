@@ -11,12 +11,12 @@
     "@supabase/supabase-js": "^2.45.0",
     "voyageai": "^0.0.5",
     "gray-matter": "^4.0.3",
+    "dotenv": "^16.0.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/gray-matter": "^4.0.6"
+    "@types/node": "^22.0.0"
   }
 }

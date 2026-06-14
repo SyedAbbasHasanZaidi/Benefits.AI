@@ -15,14 +15,21 @@ dist/
 .pytest_cache/
 .ruff_cache/
 
-# Env files
+# Env files — never commit real credentials
 .env
 .env.local
 .env.*.local
 
+# Auto-generated
+next-env.d.ts
+
 # Supabase
 .branches/
 supabase/.temp/
+
+# Claude Code plugin workspace
+.superpowers/
+.claude/
 
 # OS
 .DS_Store
