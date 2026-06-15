@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React from 'react'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -6,88 +6,11 @@ interface MessageBubbleProps {
   streaming?: boolean
 }
 
-// ── Smooth typewriter ────────────────────────────────────────────────────────
-// The Vercel AI SDK delivers tokens in irregular chunks (sometimes 1 char,
-// sometimes 20+, often followed by a flush of the remaining tokens when the
-// stream closes). Rendering each chunk directly causes visible stutter, and
-// the closing flush causes the whole tail to "dump" into the bubble at once.
-//
-// This hook buffers the target text and reveals it at a steady character rate
-// via requestAnimationFrame. Critically, the animation continues running even
-// after `streaming` flips false — it only stops once the displayed text has
-// caught up to the target. That way the closing flush types out instead of
-// appearing instantly.
-//
-// History-restored messages (which never streamed) skip the animation and
-// show their full content immediately — tracked via `everStreamedRef`.
-function useSmoothText(target: string, streaming: boolean): string {
-  const [displayed, setDisplayed] = useState(streaming ? '' : target)
-  const targetRef = useRef(target)
-  targetRef.current = target
-
-  // Latches true the moment streaming first turns on for this instance.
-  // Stays true forever after — so finishing tokens still play out.
-  const everStreamedRef = useRef(streaming)
-  if (streaming) everStreamedRef.current = true
-
-  useEffect(() => {
-    // Never streamed (history restore) → just show full text, no animation.
-    if (!everStreamedRef.current) {
-      if (displayed !== target) setDisplayed(target)
-      return
-    }
-
-    // If target diverged (new message replaced this one), reset.
-    if (target.length < displayed.length || !target.startsWith(displayed)) {
-      setDisplayed('')
-    }
-
-    // Animate to completion. Runs regardless of `streaming` — even after the
-    // stream closes, we keep ticking until displayed catches up to target.
-    let cancelled = false
-    let lastTime: number | null = null
-
-    const tick = (now: number) => {
-      if (cancelled) return
-      if (lastTime === null) lastTime = now
-      const deltaMs = now - lastTime
-      lastTime = now
-
-      setDisplayed((prev) => {
-        const targetNow = targetRef.current
-        const buffered = targetNow.length - prev.length
-        if (buffered <= 0) return prev
-
-        // Adaptive speed: 26 cps baseline (≈ relaxed reading pace), up to 90 cps
-        // only when the buffer gets very large so display never lags too far.
-        const baseCps = 26
-        const cps = Math.min(90, baseCps + buffered * 1.5)
-        const charsToAdd = Math.max(1, Math.round((deltaMs / 1000) * cps))
-        const nextLen = Math.min(targetNow.length, prev.length + charsToAdd)
-        return targetNow.slice(0, nextLen)
-      })
-
-      requestAnimationFrame(tick)
-    }
-
-    const id = requestAnimationFrame(tick)
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(id)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, streaming])
-
-  return displayed
-}
-
 // ── Minimal markdown renderer ────────────────────────────────────────────────
-// Handles **bold**, *italic*, `code`, and line breaks. Avoids pulling in a
-// full markdown library — the LLM only uses these four markers reliably.
+// Handles **bold**, *italic*, `code`, and line breaks.
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const out: React.ReactNode[] = []
-  // Tokeniser: matches **bold**, *italic*, `code`, or plain text run.
   const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)/g
   let last = 0
   let m: RegExpExecArray | null
@@ -143,14 +66,10 @@ function AssistantMark() {
 }
 
 // ── Bubble ───────────────────────────────────────────────────────────────────
+// Presentational only. The typewriter lives in MessageList so it can gate
+// quick-reply chips on the reveal actually finishing.
 
 export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
-  // Smooth typewriter for assistant bubbles only; user messages render instantly.
-  const display = useSmoothText(content, role === 'assistant' && !!streaming)
-  // Keep the caret visible while the typewriter is still catching up, even if
-  // the underlying stream has already closed.
-  const stillRevealing = role === 'assistant' && display.length < content.length
-
   if (role === 'user') {
     return (
       <div style={{ alignSelf: 'flex-end', maxWidth: '82%' }}>
@@ -173,8 +92,8 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
         paddingTop: 3, fontSize: 15.5, lineHeight: 1.62,
         color: 'var(--text-soft)', flex: 1, minWidth: 0,
       }}>
-        {renderMarkdown(display)}
-        {(streaming || stillRevealing) && <span className="caret" />}
+        {renderMarkdown(content)}
+        {streaming && <span className="caret" />}
       </div>
     </div>
   )
