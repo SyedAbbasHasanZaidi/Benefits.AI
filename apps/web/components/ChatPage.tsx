@@ -13,7 +13,7 @@ import { ChatHistory } from './ChatHistory'
 import { MessageList } from './MessageList'
 import { Discovery } from './Discovery'
 import { Results } from './Results'
-import EligibilityMeter from './EligibilityMeter'
+import EligibilityOrb from './EligibilityOrb'
 import type { ResultsData } from '@/lib/eligibility/types'
 import type { ConversationSummary } from '@/lib/conversations/types'
 import type { ChatItem } from './ChatHistory'
@@ -351,36 +351,33 @@ export function ChatPage({ schemes }: ChatPageProps) {
     router.push('/')
   }
 
-  // ── EligibilityMeter signal — closest match + 0–100 score ─────────────────
-  // Maps the rules engine output to the meter's contract:
-  //   - if any scheme is verified eligible → 100 + that scheme's name
+  // ── EligibilityOrb signal — proximity to nearest eligible scheme ──────────
+  // Maps the rules engine output to the orb's contract:
+  //   - if any scheme is verified eligible → eligible=true (orb fills + turns green)
   //   - else find the needs_info scheme with the smallest missing list,
   //     score = ((required - missing) / required) * 100
-  // Hidden when there's no signal yet (i.e. no eligibility payload at all).
+  // Hidden on landing/empty state (no eligibility payload yet).
   const meterState = (() => {
-    if (!eligibility) return { value: 0, scheme: '', show: false }
-
-    const schemeName = (id: string): string =>
-      schemes.find((s) => s.id === id)?.name ?? id
+    if (!eligibility) return { value: 0, eligible: false, show: false }
 
     if (eligibility.eligible.length > 0) {
-      return { value: 100, scheme: schemeName(eligibility.eligible[0]), show: true }
+      return { value: 100, eligible: true, show: true }
     }
 
     // Closest needs_info scheme = highest progress = lowest missing/required ratio
-    let best = { value: 0, schemeId: '' as string }
+    let best = 0
     for (const item of eligibility.needs_info) {
       const scheme = schemes.find((s) => s.id === item.schemeId) as
         (typeof schemes)[number] & { required_inputs?: string[] } | undefined
-      const required = scheme?.required_inputs?.length ?? 4 // fallback heuristic
+      const required = scheme?.required_inputs?.length ?? 4
       const missing = item.missingVars.length
       const provided = Math.max(0, required - missing)
       const score = Math.round((provided / required) * 100)
-      if (score > best.value) best = { value: score, schemeId: item.schemeId }
+      if (score > best) best = score
     }
 
-    if (!best.schemeId) return { value: 0, scheme: '', show: false }
-    return { value: best.value, scheme: schemeName(best.schemeId), show: true }
+    if (best === 0) return { value: 0, eligible: false, show: false }
+    return { value: best, eligible: false, show: true }
   })()
   const showMeter = stage === 'conversation' && meterState.show
 
@@ -446,31 +443,28 @@ export function ChatPage({ schemes }: ChatPageProps) {
         />
       </div>
 
-      {/* ── Eligibility meter — water-fill proximity gauge above composer ── */}
-      {showMeter && (
-        <div style={{ padding: '0 26px 4px', flexShrink: 0 }}>
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
-            <div
-              style={{ width: '75%', margin: '0 auto 12px', cursor: 'pointer' }}
-              onClick={runAssessment}
-              role="button"
-              aria-label="View matches"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); runAssessment() } }}
-            >
-              <EligibilityMeter
+      {/* ── Composer dock + EligibilityOrb to the right ── */}
+      <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
+          {/* Orb — absolutely positioned beside the dock, vertically centred.
+              `left: 100%` + marginLeft 16 keeps the input at full width
+              (does not shrink it), per the README placement rules. */}
+          {showMeter && (
+            <div style={{
+              position: 'absolute',
+              left: '100%', top: '50%',
+              transform: 'translateY(-50%)',
+              marginLeft: 16, zIndex: 5,
+            }}>
+              <EligibilityOrb
                 value={meterState.value}
-                scheme={meterState.scheme}
+                eligible={meterState.eligible}
+                onClick={runAssessment}
+                size={34}
                 accent="var(--accent)"
               />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Composer dock ── */}
-      <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          )}
           <div
             className="dock floating"
             style={{

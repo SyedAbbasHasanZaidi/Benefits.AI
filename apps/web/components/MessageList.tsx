@@ -5,6 +5,7 @@ import type { Message } from 'ai'
 import { GuidanceCard } from './GuidanceCard'
 import { MessageBubble } from './MessageBubble'
 import { QuickReplyChips } from './QuickReplyChips'
+import ThinkingIndicator from './ThinkingIndicator'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
 
 interface MessageListProps {
@@ -17,26 +18,16 @@ interface MessageListProps {
   onDismissGuidance: () => void
 }
 
-function ThinkingDots() {
+/** Assistant avatar shown next to the thinking indicator (matches bubble layout). */
+function AssistantMark() {
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-      <div style={{
-        width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-        display: 'grid', placeItems: 'center',
-        background: 'var(--accent-tint)', color: 'var(--accent)',
-        border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
-        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '-0.02em',
-      }}>B</div>
-      <div style={{ display: 'flex', gap: 5, alignItems: 'center', height: 20 }}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} style={{
-            width: 7, height: 7, borderRadius: '50%', background: 'var(--faint)',
-            animation: 'dotPulse 1.1s ease-in-out infinite', animationDelay: `${i * 0.16}s`,
-            display: 'inline-block',
-          }} />
-        ))}
-      </div>
-    </div>
+    <div style={{
+      width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+      display: 'grid', placeItems: 'center',
+      background: 'var(--accent-tint)', color: 'var(--accent)',
+      border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '-0.02em',
+    }}>B</div>
   )
 }
 
@@ -56,6 +47,14 @@ export function MessageList({
   }, [messages, showGuidance, isLoading, chips.length])
 
   const visible = messages.filter((m) => m.role === 'user' || m.role === 'assistant')
+  const lastMsg = visible[visible.length - 1]
+
+  // Show the thinking indicator only while we're waiting for the assistant
+  // to start a response — once the streaming assistant message exists (even
+  // with empty content), the indicator unmounts so the streaming bubble takes
+  // over. Streaming presence is checked via the loading state + last message
+  // role (still `user` → assistant hasn't started yet).
+  const showThinking = isLoading && lastMsg?.role === 'user'
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '34px 0', minHeight: 0 }}>
@@ -84,7 +83,12 @@ export function MessageList({
           )
         })}
 
-        {isLoading && visible[visible.length - 1]?.role === 'user' && <ThinkingDots />}
+        {showThinking && (
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <AssistantMark />
+            <ThinkingIndicator color="var(--accent)" />
+          </div>
+        )}
 
         <div ref={bottomRef} />
       </div>
