@@ -1,9 +1,73 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
+}
+
+// ── Smooth typewriter ────────────────────────────────────────────────────────
+// The Vercel AI SDK delivers tokens in irregular chunks (sometimes 1 char,
+// sometimes 20+). Rendering each chunk directly causes visible stutter. This
+// hook buffers the target text and reveals it at a steady character rate via
+// requestAnimationFrame, so the user sees a smooth typewriter regardless of
+// how the stream arrives.
+//
+// Adaptive: if the buffer grows large (lots of tokens queued), we speed up so
+// the displayed text never lags too far behind reality. When `enabled` is
+// false (streaming finished, or restored from history), we snap to full text.
+function useSmoothText(target: string, enabled: boolean): string {
+  const [displayed, setDisplayed] = useState(enabled ? '' : target)
+  const targetRef = useRef(target)
+  targetRef.current = target
+
+  useEffect(() => {
+    if (!enabled) {
+      setDisplayed(target)
+      return
+    }
+
+    // If the target shrank or diverged (new message), reset the typewriter
+    if (target.length < displayed.length || !target.startsWith(displayed)) {
+      setDisplayed('')
+    }
+
+    let cancelled = false
+    let lastTime: number | null = null
+
+    const tick = (now: number) => {
+      if (cancelled) return
+      if (lastTime === null) lastTime = now
+      const deltaMs = now - lastTime
+      lastTime = now
+
+      setDisplayed((prev) => {
+        const targetNow = targetRef.current
+        const buffered = targetNow.length - prev.length
+        if (buffered <= 0) return prev
+
+        // Adaptive speed: 45 cps baseline, up to 220 cps when the buffer is large
+        const baseCps = 45
+        const cps = Math.min(220, baseCps + buffered * 4)
+        const charsToAdd = Math.max(1, Math.round((deltaMs / 1000) * cps))
+        const nextLen = Math.min(targetNow.length, prev.length + charsToAdd)
+        return targetNow.slice(0, nextLen)
+      })
+
+      requestAnimationFrame(tick)
+    }
+
+    const id = requestAnimationFrame(tick)
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(id)
+    }
+  // We intentionally watch `target` (re-arm whenever new tokens arrive) and
+  // `enabled` (snap on finish). `displayed` is read inside via state setter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, enabled])
+
+  return displayed
 }
 
 // ── Minimal markdown renderer ────────────────────────────────────────────────
@@ -70,6 +134,9 @@ function AssistantMark() {
 // ── Bubble ───────────────────────────────────────────────────────────────────
 
 export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+  // Smooth typewriter for assistant bubbles only; user messages render instantly.
+  const display = useSmoothText(content, role === 'assistant' && !!streaming)
+
   if (role === 'user') {
     return (
       <div style={{ alignSelf: 'flex-end', maxWidth: '82%' }}>
@@ -92,7 +159,7 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
         paddingTop: 3, fontSize: 15.5, lineHeight: 1.62,
         color: 'var(--text-soft)', flex: 1, minWidth: 0,
       }}>
-        {renderMarkdown(content)}
+        {renderMarkdown(display)}
         {streaming && <span className="caret" />}
       </div>
     </div>
