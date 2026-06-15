@@ -194,6 +194,57 @@ export function pickNextQuestion(
   return buildQuestion(remaining[0] as keyof ProfileVariables)
 }
 
+/**
+ * Parses a bracket chip text ("Under 18", "23–34", "67+", "$25–45k", "0",
+ * "Not working") into a single representative number. Returns null when the
+ * text doesn't look like a numeric bracket — caller falls back to text extraction.
+ */
+function parseBracketChip(text: string): number | null {
+  const cleaned = text
+    .replace(/\$/g, '')
+    .replace(/,/g, '')
+    .replace(/k/gi, '000')   // "25000–45000"
+    .trim()
+    .toLowerCase()
+
+  if (cleaned === 'not working' || cleaned === 'none' || cleaned === '0') return 0
+
+  // "Under N" → N - 1 (best-effort lower bound)
+  if (cleaned.startsWith('under ')) {
+    const n = parseInt(cleaned.slice(6), 10)
+    if (!Number.isNaN(n)) return Math.max(0, n - 1)
+  }
+
+  // "N+" → N (lower bound of the open range)
+  if (cleaned.endsWith('+')) {
+    const n = parseInt(cleaned.slice(0, -1), 10)
+    if (!Number.isNaN(n)) return n
+  }
+
+  // "X–Y" or "X-Y" → midpoint
+  const range = cleaned.match(/^(\d+)\s*[-–]\s*(\d+)$/)
+  if (range) {
+    const lo = parseInt(range[1], 10)
+    const hi = parseInt(range[2], 10)
+    if (!Number.isNaN(lo) && !Number.isNaN(hi)) return Math.round((lo + hi) / 2)
+  }
+
+  // Single number
+  const single = parseInt(cleaned, 10)
+  if (!Number.isNaN(single)) return single
+
+  return null
+}
+
+const NUMERIC_BRACKET_VARS = new Set<keyof ProfileVariables>([
+  'age',
+  'annual_income',
+  'rent_paid_fortnightly',
+  'number_of_children',
+  'youngest_child_age',
+  'hours_worked_per_week',
+])
+
 export function mapChipToVariable(
   variable: keyof ProfileVariables,
   chipValue: string,
@@ -225,6 +276,13 @@ export function mapChipToVariable(
 
   if (variable === 'state') {
     return { state: chipValue.toUpperCase() }
+  }
+
+  // Numeric brackets — deterministic mapping so we never rely on the LLM
+  // extracting a number from a chip text it produced itself.
+  if (NUMERIC_BRACKET_VARS.has(variable)) {
+    const n = parseBracketChip(chipValue)
+    if (n !== null) return { [variable]: n }
   }
 
   return {}
@@ -259,18 +317,19 @@ export function buildSystemPrompt(
   const sources = chunks.map((c) => `[${c.scheme_id}] ${c.chunk_text}`).join('\n\n')
 
   const nextQ = nextQuestion
-    ? `\nNext question to ask the user (ask this naturally, exactly once): ${nextQuestion.question}`
+    ? `\nNext question to ask the user (ask EXACTLY this question — do not substitute a different topic; phrasing may be lightly softened but the subject must match): "${nextQuestion.question}"`
     : '\nAll questions have been answered. Summarise the results clearly.'
 
   return `You are a friendly Australian government benefits advisor called Benefits.AI. Help users discover entitlements they qualify for.
 
 Rules:
-- Ask EXACTLY ONE question per response — the specified next question below
-- If eligible schemes exist, briefly acknowledge them before asking
-- Every factual claim about payment amounts or eligibility conditions must come from the Official sources below
-- Use plain, warm language — no jargon
-- Never make definitive eligibility determinations — say "you may qualify" or "you appear eligible"
-- Do NOT invent rules, amounts, or conditions not present in the Official sources
+- Ask EXACTLY ONE question per response — the specified next question below. Do NOT swap it for a different topic (e.g. do not ask about children when you've been told to ask about employment).
+- If eligible schemes exist, briefly acknowledge them before asking.
+- Every factual claim about payment amounts or eligibility conditions must come from the Official sources below.
+- Use plain, warm language — no jargon.
+- Never make definitive eligibility determinations — say "you may qualify" or "you appear eligible".
+- Do NOT invent rules, amounts, or conditions not present in the Official sources.
+- Do NOT assume facts the user hasn't stated. If their reply is ambiguous, off-topic, or doesn't answer the question (e.g. they reply "Under 18" to a question about employment), say you didn't quite catch that and re-ask the same question gently.
 - Write in plain prose — DO NOT use markdown formatting like **bold**, *italic*, bullet lists, or headings. Just complete sentences.
 
 Current user profile:
