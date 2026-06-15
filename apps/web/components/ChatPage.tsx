@@ -445,33 +445,34 @@ export function ChatPage({ schemes }: ChatPageProps) {
 
       {/* ── Composer dock + EligibilityOrb to the right ── */}
       <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
-          {/* Orb — absolutely positioned beside the dock, vertically centred.
-              `left: 100%` + marginLeft 16 keeps the input at full width
-              (does not shrink it), per the README placement rules. */}
-          {showMeter && (
-            <div style={{
-              position: 'absolute',
-              left: '100%', top: '50%',
-              transform: 'translateY(-50%)',
-              marginLeft: 16, zIndex: 5,
-            }}>
-              <EligibilityOrb
-                value={meterState.value}
-                eligible={meterState.eligible}
-                onClick={runAssessment}
-                size={34}
-                accent="var(--accent)"
-              />
-            </div>
-          )}
-          <div
-            className="dock floating"
-            style={{
-              display: 'flex', alignItems: 'flex-end', gap: 6,
-              padding: '7px 8px 7px 18px',
-            }}
-          >
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          {/* The orb anchors off THIS relative wrapper, which contains only
+              the dock — so `top: 50%` resolves to the centre of the input
+              pill, not the centre of dock + disclaimer below it. */}
+          <div style={{ position: 'relative' }}>
+            {showMeter && (
+              <div style={{
+                position: 'absolute',
+                left: '100%', top: '50%',
+                transform: 'translateY(-50%)',
+                marginLeft: 16, zIndex: 5,
+              }}>
+                <EligibilityOrb
+                  value={meterState.value}
+                  eligible={meterState.eligible}
+                  onClick={runAssessment}
+                  size={34}
+                  accent="var(--accent)"
+                />
+              </div>
+            )}
+            <div
+              className="dock floating"
+              style={{
+                display: 'flex', alignItems: 'flex-end', gap: 6,
+                padding: '7px 8px 7px 18px',
+              }}
+            >
             <textarea
               ref={inputRef}
               value={input}
@@ -509,6 +510,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
                 <SendIcon size={20} />
               </button>
             </div>
+          </div>
           </div>
           <p style={{
             textAlign: 'center', fontSize: 12, color: 'var(--faint)',
