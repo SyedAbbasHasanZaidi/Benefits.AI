@@ -8,30 +8,42 @@ interface MessageBubbleProps {
 
 // ── Smooth typewriter ────────────────────────────────────────────────────────
 // The Vercel AI SDK delivers tokens in irregular chunks (sometimes 1 char,
-// sometimes 20+). Rendering each chunk directly causes visible stutter. This
-// hook buffers the target text and reveals it at a steady character rate via
-// requestAnimationFrame, so the user sees a smooth typewriter regardless of
-// how the stream arrives.
+// sometimes 20+, often followed by a flush of the remaining tokens when the
+// stream closes). Rendering each chunk directly causes visible stutter, and
+// the closing flush causes the whole tail to "dump" into the bubble at once.
 //
-// Adaptive: if the buffer grows large (lots of tokens queued), we speed up so
-// the displayed text never lags too far behind reality. When `enabled` is
-// false (streaming finished, or restored from history), we snap to full text.
-function useSmoothText(target: string, enabled: boolean): string {
-  const [displayed, setDisplayed] = useState(enabled ? '' : target)
+// This hook buffers the target text and reveals it at a steady character rate
+// via requestAnimationFrame. Critically, the animation continues running even
+// after `streaming` flips false — it only stops once the displayed text has
+// caught up to the target. That way the closing flush types out instead of
+// appearing instantly.
+//
+// History-restored messages (which never streamed) skip the animation and
+// show their full content immediately — tracked via `everStreamedRef`.
+function useSmoothText(target: string, streaming: boolean): string {
+  const [displayed, setDisplayed] = useState(streaming ? '' : target)
   const targetRef = useRef(target)
   targetRef.current = target
 
+  // Latches true the moment streaming first turns on for this instance.
+  // Stays true forever after — so finishing tokens still play out.
+  const everStreamedRef = useRef(streaming)
+  if (streaming) everStreamedRef.current = true
+
   useEffect(() => {
-    if (!enabled) {
-      setDisplayed(target)
+    // Never streamed (history restore) → just show full text, no animation.
+    if (!everStreamedRef.current) {
+      if (displayed !== target) setDisplayed(target)
       return
     }
 
-    // If the target shrank or diverged (new message), reset the typewriter
+    // If target diverged (new message replaced this one), reset.
     if (target.length < displayed.length || !target.startsWith(displayed)) {
       setDisplayed('')
     }
 
+    // Animate to completion. Runs regardless of `streaming` — even after the
+    // stream closes, we keep ticking until displayed catches up to target.
     let cancelled = false
     let lastTime: number | null = null
 
@@ -63,10 +75,8 @@ function useSmoothText(target: string, enabled: boolean): string {
       cancelled = true
       cancelAnimationFrame(id)
     }
-  // We intentionally watch `target` (re-arm whenever new tokens arrive) and
-  // `enabled` (snap on finish). `displayed` is read inside via state setter.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, enabled])
+  }, [target, streaming])
 
   return displayed
 }
@@ -137,6 +147,9 @@ function AssistantMark() {
 export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
   // Smooth typewriter for assistant bubbles only; user messages render instantly.
   const display = useSmoothText(content, role === 'assistant' && !!streaming)
+  // Keep the caret visible while the typewriter is still catching up, even if
+  // the underlying stream has already closed.
+  const stillRevealing = role === 'assistant' && display.length < content.length
 
   if (role === 'user') {
     return (
@@ -161,7 +174,7 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
         color: 'var(--text-soft)', flex: 1, minWidth: 0,
       }}>
         {renderMarkdown(display)}
-        {streaming && <span className="caret" />}
+        {(streaming || stillRevealing) && <span className="caret" />}
       </div>
     </div>
   )
