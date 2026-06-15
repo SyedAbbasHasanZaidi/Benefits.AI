@@ -200,38 +200,49 @@ export function pickNextQuestion(
  * text doesn't look like a numeric bracket — caller falls back to text extraction.
  */
 function parseBracketChip(text: string): number | null {
-  const cleaned = text
+  const trimmed = text.trim()
+  const lower = trimmed.toLowerCase()
+
+  // Symbolic zero-work answers — must check before normalisation, otherwise
+  // `replace(/k/gi, '000')` would munge "working" into "wor000ing".
+  if (lower === 'not working' || lower === 'none') return 0
+
+  // "$25–45k" implies BOTH numbers are in thousands. Detect once, then apply
+  // uniformly. \b prevents matching 'k' inside English words.
+  const hasKSuffix = /\d+k\b/i.test(trimmed)
+  const mult = hasKSuffix ? 1000 : 1
+
+  const cleaned = trimmed
     .replace(/\$/g, '')
     .replace(/,/g, '')
-    .replace(/k/gi, '000')   // "25000–45000"
-    .trim()
+    .replace(/(\d+)k\b/gi, '$1')   // strip 'k' only when it's a number suffix
     .toLowerCase()
+    .trim()
 
-  if (cleaned === 'not working' || cleaned === 'none' || cleaned === '0') return 0
+  if (cleaned === '0') return 0
 
-  // "Under N" → N - 1 (best-effort lower bound)
   if (cleaned.startsWith('under ')) {
     const n = parseInt(cleaned.slice(6), 10)
-    if (!Number.isNaN(n)) return Math.max(0, n - 1)
+    if (!Number.isNaN(n)) return Math.max(0, n * mult - 1)
   }
 
-  // "N+" → N (lower bound of the open range)
   if (cleaned.endsWith('+')) {
     const n = parseInt(cleaned.slice(0, -1), 10)
-    if (!Number.isNaN(n)) return n
+    if (!Number.isNaN(n)) return n * mult
   }
 
-  // "X–Y" or "X-Y" → midpoint
   const range = cleaned.match(/^(\d+)\s*[-–]\s*(\d+)$/)
   if (range) {
     const lo = parseInt(range[1], 10)
     const hi = parseInt(range[2], 10)
-    if (!Number.isNaN(lo) && !Number.isNaN(hi)) return Math.round((lo + hi) / 2)
+    if (!Number.isNaN(lo) && !Number.isNaN(hi)) {
+      // Multiply BEFORE averaging so "$45–80k" gives 62500 not 63000
+      return Math.round(((lo + hi) / 2) * mult)
+    }
   }
 
-  // Single number
   const single = parseInt(cleaned, 10)
-  if (!Number.isNaN(single)) return single
+  if (!Number.isNaN(single)) return single * mult
 
   return null
 }
