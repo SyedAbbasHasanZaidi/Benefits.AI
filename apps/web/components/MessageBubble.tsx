@@ -46,9 +46,10 @@ function useSmoothText(target: string, enabled: boolean): string {
         const buffered = targetNow.length - prev.length
         if (buffered <= 0) return prev
 
-        // Adaptive speed: 45 cps baseline, up to 220 cps when the buffer is large
-        const baseCps = 45
-        const cps = Math.min(220, baseCps + buffered * 4)
+        // Adaptive speed: 26 cps baseline (≈ relaxed reading pace), up to 90 cps
+        // only when the buffer gets very large so display never lags too far.
+        const baseCps = 26
+        const cps = Math.min(90, baseCps + buffered * 1.5)
         const charsToAdd = Math.max(1, Math.round((deltaMs / 1000) * cps))
         const nextLen = Math.min(targetNow.length, prev.length + charsToAdd)
         return targetNow.slice(0, nextLen)
