@@ -454,7 +454,10 @@ export function ChatPage({ schemes }: ChatPageProps) {
               <div style={{
                 position: 'absolute',
                 left: '100%', top: '50%',
-                transform: 'translateY(-50%)',
+                // -50% centres the orb geometrically against the dock; the
+                // extra +2px nudge drops it onto the typographic midline of
+                // the textarea (x-height sits ~2px below the geometric centre).
+                transform: 'translateY(calc(-50% + 2px))',
                 marginLeft: 16, zIndex: 5,
               }}>
                 <EligibilityOrb
