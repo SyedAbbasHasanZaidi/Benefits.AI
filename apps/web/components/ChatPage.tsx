@@ -35,7 +35,7 @@ interface PersistedState {
 function loadSession(): PersistedState | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
+    const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return null
     return JSON.parse(raw) as PersistedState
   } catch { return null }
@@ -43,7 +43,7 @@ function loadSession(): PersistedState | null {
 
 function saveSession(state: PersistedState) {
   if (typeof window === 'undefined') return
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(state)) } catch {}
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(state)) } catch {}
 }
 
 interface StreamPayload {
@@ -81,7 +81,9 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const { user, isLoading: authLoading } = useAuth()
   const { toasts, addToast, dismiss } = useToasts()
 
-  // Restore prior session on mount (sessionStorage) — survives navigation within tab
+  // Restore prior session on mount (localStorage) — survives tab close + browser restart.
+  // Temporary until Supabase persistence lands; swap loadSession/saveSession back to
+  // sessionStorage (or remove entirely) once profile is server-side per user.
   const restored = useMemo(() => loadSession(), [])
 
   const [profile, setProfile] = useState<ProfileVariables>(restored?.profile ?? {})
@@ -341,7 +343,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   }, [])
 
   function restartAssessment() {
-    sessionStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(SESSION_KEY)
     setMessages([])
     setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
     setResults(null)
