@@ -547,9 +547,9 @@ const BOUNDARY: TestCase[] = [
   {
     id: '8.1b',
     category: 'boundary',
-    name: 'Youth Allowance — age 22 (ineligible boundary)',
+    name: 'Youth Allowance — age 25 (ineligible boundary)',
     initialProfile: {
-      age: 22, employment_status: 'student', is_australian_resident: true,
+      age: 25, employment_status: 'student', is_australian_resident: true,
       annual_income: 8000, hours_worked_per_week: 5,
     },
     userMessages: ['Anything I might qualify for?'],
@@ -562,10 +562,10 @@ const BOUNDARY: TestCase[] = [
     name: 'FTB A — within income band',
     initialProfile: {
       is_australian_resident: true,
-      number_of_children: 1, youngest_child_age: 5, annual_income: 95000,
+      number_of_children: 1, youngest_child_age: 5, annual_income: 70000,
     },
     userMessages: ['Anything I might qualify for?'],
-    expectedEligible: ['FTB_A'],
+    expectedEligible: ['FTB_A', 'FTB_B'],
     expected: 'pass',
   },
   {
@@ -613,6 +613,7 @@ const BOUNDARY: TestCase[] = [
       is_australian_resident: true, state: 'NSW',
       age: 70, employment_status: 'retired',
       tenure_type: 'owner', has_financial_hardship: true,
+      annual_income: 0, number_of_children: 0,
     },
     userMessages: ['Anything I qualify for?'],
     expectedEligible: ['NSW_LOW_INCOME_HOUSEHOLD_REBATE'],

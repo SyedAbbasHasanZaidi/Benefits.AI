@@ -20,7 +20,7 @@ const KNOWN_KEYS = new Set<keyof ProfileVariables>([
   'uses_life_support_equipment',
 ])
 
-const EXTRACTION_SYSTEM = `You extract eligibility variables from a user message. Return ONLY a JSON object containing variables you can extract with confidence. Omit variables that are not clearly stated or strongly implied. Do not guess. Do not add keys outside this schema.
+const EXTRACTION_SYSTEM = `You extract eligibility variables from a user message. Return ONLY a JSON object containing variables you can extract with confidence. Omit variables that are not clearly stated or strongly implied. Do not guess. Do not add keys outside this schema. If the user did not literally state or strongly imply a fact, OMIT that key entirely. An empty {} is the correct answer when nothing extractable was said.
 
 Schema (extract only these keys):
   is_australian_resident  boolean
@@ -56,6 +56,30 @@ Output: {}
 
 Example 4 — nothing extractable:
 User: "What kind of help can I get?"
+Output: {}
+
+Example 5 — sparse statement, no inferred residency/age/income/location:
+User: "I recently lost my job."
+Output: {"employment_status":"unemployed"}
+
+Example 6 — vague frequency, omit numeric (do NOT set hours_worked_per_week or employment_status):
+User: "I've been picking up shifts here and there."
+Output: {}
+
+Example 7 — super/dividends are NOT annual_income (annual_income means employment income; investment income is out-of-model):
+User: "I'm 70, retired. Super pays me $30k a year and I have $200k in shares paying dividends."
+Output: {"age":70,"employment_status":"retired"}
+
+Example 8 — refusal / "don't know" never re-fills from prior turns:
+User: "I'd rather not say."
+Output: {}
+
+Example 9 — city-to-state mapping is deterministic and welcome (Sydney→NSW, Melbourne/melbs→VIC, Brisbane/brissy→QLD, Perth→WA, Adelaide→SA, Hobart→TAS, Canberra→ACT, Darwin→NT):
+User: "im 28 living in melbs, no job rn"
+Output: {"age":28,"state":"VIC","employment_status":"unemployed"}
+
+Example 10 — travel ≠ residency claim. Only set is_australian_resident when user says citizen / permanent resident / "I'm Australian":
+User: "just got back from overseas"
 Output: {}`
 
 export async function extract(
