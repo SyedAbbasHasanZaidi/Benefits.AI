@@ -25,7 +25,7 @@ const HAS_KEY = !!process.env.ANTHROPIC_API_KEY
 const HAS_RULES = !!process.env.RULES_SERVICE_URL || true // defaults to localhost
 
 const RESPONSE_MODEL = process.env.ANTHROPIC_MODEL_ID ?? 'claude-sonnet-4-6'
-const EXTRACT_MODEL = 'claude-haiku-4-5-20251001'
+const EXTRACT_MODEL = 'claude-sonnet-4-6'
 
 const responseAnthropic = HAS_KEY ? createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null
 
