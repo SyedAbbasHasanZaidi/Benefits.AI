@@ -42,8 +42,10 @@ export async function POST(req: Request) {
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
-  // Haiku for extraction (cheap structured JSON) — Sonnet handles the user-facing stream below.
-  const llm = new AnthropicProvider('claude-haiku-4-5-20251001')
+  // Sonnet for extraction — Haiku silently returned {} on natural-language
+  // inferences like "I was 17 but just had my birthday" → age 18. The cost
+  // delta (~$0.003 vs $0.0005 per turn) is acceptable at MVP scale.
+  const llm = new AnthropicProvider('claude-sonnet-4-6')
   const ctx = await prepareTurn(userMessage, profile, history, llm, chipDelta)
 
   const data = new StreamData()

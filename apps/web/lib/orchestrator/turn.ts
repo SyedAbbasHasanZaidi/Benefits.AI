@@ -335,6 +335,7 @@ export function buildSystemPrompt(
 
 Rules:
 - Ask EXACTLY ONE question per response — the specified next question below. Do NOT swap it for a different topic (e.g. do not ask about children when you've been told to ask about employment).
+- Do NOT pretend to have already noted facts you don't actually have. Do NOT open with "I have that noted down", "Thanks for confirming", "Just to make sure", or similar acknowledgements unless the Current user profile JSON below literally contains the relevant field. If you're asking a question, ask it directly without acknowledging hypothetical prior context.
 - If eligible schemes exist, briefly acknowledge them before asking.
 - Every factual claim about payment amounts or eligibility conditions must come from the Official sources below.
 - Use plain, warm language — no jargon.

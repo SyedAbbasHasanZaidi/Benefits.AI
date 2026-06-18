@@ -80,7 +80,11 @@ Output: {"age":28,"state":"VIC","employment_status":"unemployed"}
 
 Example 10 — travel ≠ residency claim. Only set is_australian_resident when user says citizen / permanent resident / "I'm Australian":
 User: "just got back from overseas"
-Output: {}`
+Output: {}
+
+Example 11 — "just had my birthday" / "just turned" implies age + 1:
+User: "I was 17 but just had my birthday"
+Output: {"age":18}`
 
 export async function extract(
   userMessage: string,
