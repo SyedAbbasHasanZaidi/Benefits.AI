@@ -222,6 +222,298 @@ export const PERSONAS: Persona[] = [
       "70 years old, own my house in Blacktown — paid it off in '08. Retired on about $25k a year. Aussie citizen.",
   },
 
+  // ── Additional positive variants (rigorous coverage per scheme) ─────────
+  {
+    id: 'YOUTH_ALLOWANCE-eligible-unemployed-19',
+    groundTruth: { eligible: ['YOUTH_ALLOWANCE'] },
+    profile: {
+      is_australian_resident: true,
+      age: 19,
+      employment_status: 'unemployed',
+      annual_income: 0,
+    },
+    backstory:
+      "I'm 19, just finished year 12 last year, been trying to find work but nothing's stuck. Living with mum in Logan. Australian citizen.",
+  },
+  {
+    id: 'YOUTH_ALLOWANCE-eligible-part-time-22',
+    groundTruth: { eligible: ['YOUTH_ALLOWANCE'] },
+    profile: {
+      is_australian_resident: true,
+      age: 22,
+      employment_status: 'employed',
+      annual_income: 8000,
+      hours_worked_per_week: 8,
+    },
+    backstory:
+      "22, studying at TAFE part-time and doing about 8 hours a week at a café in Brunswick. Around $8k a year. Aussie, lived in Melbourne all my life.",
+  },
+  {
+    id: 'FTB_A-eligible-couple-three-kids',
+    groundTruth: { eligible: ['FTB_A'] },
+    profile: {
+      is_australian_resident: true,
+      number_of_children: 3,
+      youngest_child_age: 3,
+      annual_income: 65000,
+      has_partner: true,
+    },
+    backstory:
+      "We've got three kids — 3, 7, and 10. My wife and I both work part-time, brings in about $65k combined. Citizens, in Adelaide.",
+  },
+  {
+    id: 'FTB_A-eligible-single-dad-recent-divorce',
+    groundTruth: { eligible: ['FTB_A'] },
+    profile: {
+      is_australian_resident: true,
+      number_of_children: 2,
+      youngest_child_age: 4,
+      annual_income: 38000,
+      has_partner: false,
+    },
+    backstory:
+      "Recently separated from my partner. Got the kids full-time now — 4 and 9. Working four days a week at a warehouse, about $38k a year. Aussie citizen.",
+  },
+  {
+    id: 'JOBSEEKER-eligible-part-time-low-hours',
+    groundTruth: { eligible: ['JOBSEEKER'] },
+    profile: {
+      is_australian_resident: true,
+      age: 45,
+      employment_status: 'employed',
+      annual_income: 15000,
+      hours_worked_per_week: 10,
+    },
+    backstory:
+      "I'm 45, only getting about 10 hours a week at the petrol station — maybe $15k a year. Looking for more work. Aussie citizen, in Geelong.",
+  },
+  {
+    id: 'JOBSEEKER-eligible-recently-redundant',
+    groundTruth: { eligible: ['JOBSEEKER'] },
+    profile: {
+      is_australian_resident: true,
+      age: 52,
+      employment_status: 'unemployed',
+      annual_income: 5000,
+    },
+    backstory:
+      "I'm 52, got made redundant from a manufacturing job 2 months ago. Picked up a tiny bit of cash work, maybe $5k since. Citizen, in Perth.",
+  },
+  {
+    id: 'AGE_PENSION-eligible-just-eligible-67',
+    groundTruth: { eligible: ['AGE_PENSION'] },
+    profile: {
+      is_australian_resident: true,
+      age: 67,
+      annual_income: 18000,
+      employment_status: 'retired',
+    },
+    backstory:
+      "Just turned 67 last month, finally retiring. Have about $18k a year coming in from super. Citizen, lived in Hobart most my life.",
+  },
+  {
+    id: 'AGE_PENSION-eligible-elderly-couple',
+    groundTruth: { eligible: ['AGE_PENSION'] },
+    profile: {
+      is_australian_resident: true,
+      age: 82,
+      annual_income: 22000,
+      employment_status: 'retired',
+      has_partner: true,
+    },
+    backstory:
+      "I'm 82, husband's 84. Both retired for years. Combined income from super is around $22k. Australian, in Canberra.",
+  },
+  {
+    id: 'DSP-eligible-cancer-survivor-50',
+    groundTruth: { eligible: ['DSP'] },
+    profile: {
+      is_australian_resident: true,
+      age: 50,
+      has_disability: true,
+      annual_income: 8000,
+      employment_status: 'unemployed',
+    },
+    backstory:
+      "I'm 50, had cancer treatment last year — still recovering. Can't work full-time anymore. Bit of casual remote stuff, $8k or so. Aussie.",
+  },
+  {
+    id: 'DSP-eligible-mental-health-25',
+    groundTruth: { eligible: ['DSP'] },
+    profile: {
+      is_australian_resident: true,
+      age: 25,
+      has_disability: true,
+      annual_income: 3000,
+      employment_status: 'unemployed',
+    },
+    backstory:
+      "I'm 25, dealing with severe anxiety and depression — diagnosed. Holding down a job's been impossible. Maybe $3k from odd jobs. Citizen, in Darwin.",
+  },
+  {
+    id: 'RENT_ASSISTANCE-eligible-boarding-house',
+    groundTruth: { eligible: ['RENT_ASSISTANCE'] },
+    profile: {
+      is_australian_resident: true,
+      tenure_type: 'boarding',
+      rent_paid_fortnightly: 400,
+    },
+    backstory:
+      "I'm in a boarding house in inner Sydney, about $400 a fortnight. Australian citizen.",
+  },
+  {
+    id: 'RENT_ASSISTANCE-eligible-single-mum-renting',
+    groundTruth: { eligible: ['RENT_ASSISTANCE'] },
+    profile: {
+      is_australian_resident: true,
+      tenure_type: 'renting',
+      rent_paid_fortnightly: 800,
+      has_partner: false,
+      number_of_children: 1,
+      youngest_child_age: 3,
+    },
+    backstory:
+      "Single mum, one toddler. Renting a two-bedroom in Brisbane for $800 a fortnight. Aussie citizen.",
+  },
+  {
+    id: 'PARENTING_PAYMENT-eligible-partnered-young-child',
+    groundTruth: { eligible: ['PARENTING_PAYMENT'] },
+    profile: {
+      is_australian_resident: true,
+      number_of_children: 1,
+      youngest_child_age: 4,
+      has_partner: true,
+      annual_income: 18000,
+      employment_status: 'unemployed',
+    },
+    backstory:
+      "I'm at home with our 4-year-old. Partner works but I'm not — bring in maybe $18k a year from a side thing. Citizen, in Cairns.",
+  },
+  {
+    id: 'CARER_PAYMENT-eligible-spouse-carer',
+    groundTruth: { eligible: ['CARER_PAYMENT'] },
+    profile: {
+      is_australian_resident: true,
+      is_carer: true,
+      has_partner: true,
+      annual_income: 15000,
+      employment_status: 'unemployed',
+    },
+    backstory:
+      "I care for my husband — he had a stroke two years ago, full-time care now. I can't work much, maybe $15k from a tiny consulting gig. Aussie, in Wollongong.",
+  },
+  {
+    id: 'LIHCC-eligible-single-low-income',
+    groundTruth: { eligible: ['LIHCC'] },
+    profile: {
+      is_australian_resident: true,
+      annual_income: 15000,
+      number_of_children: 0,
+    },
+    backstory:
+      "Single, no kids, scraping by on about $15k a year from casual work. Aussie citizen, in Newcastle.",
+  },
+  {
+    id: 'NSW_LOW_INCOME_REBATE-eligible-pensioner',
+    groundTruth: { eligible: ['NSW_LOW_INCOME_HOUSEHOLD_REBATE'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      annual_income: 22000,
+      age: 72,
+      employment_status: 'retired',
+    },
+    backstory:
+      "72, retired in Coffs Harbour, NSW. About $22k a year from super. Aussie citizen, born here.",
+  },
+  {
+    id: 'NSW_EAPA-eligible-disconnection-notice',
+    groundTruth: { eligible: ['NSW_EAPA'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      has_financial_hardship: true,
+      annual_income: 25000,
+      employment_status: 'unemployed',
+    },
+    backstory:
+      "I'm in Bankstown, NSW. Lost my job a few months back, just got a disconnection notice from the power company. About $25k income this year so far. Citizen.",
+  },
+  {
+    id: 'NSW_SENIORS_CARD-eligible-fully-retired',
+    groundTruth: { eligible: ['NSW_SENIORS_CARD'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      age: 70,
+      hours_worked_per_week: 0,
+      employment_status: 'retired',
+    },
+    backstory:
+      "I'm 70, fully retired, in Tweed Heads, NSW. Not working at all anymore. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES-eligible',
+    groundTruth: {
+      eligible: ['COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES_REBATE'],
+    },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'CANTERBURY_BANKSTOWN',
+      tenure_type: 'owner',
+      age: 71,
+      annual_income: 24000,
+    },
+    backstory:
+      "I'm 71, own my home in Bankstown — Canterbury-Bankstown council. Retired, $24k a year. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_CENTRAL_COAST_PENSIONER_RATES-eligible',
+    groundTruth: {
+      eligible: ['COUNCIL_CENTRAL_COAST_PENSIONER_RATES_REBATE'],
+    },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'CENTRAL_COAST',
+      tenure_type: 'owner',
+      age: 69,
+      annual_income: 23000,
+    },
+    backstory:
+      "I'm 69, own a place up on the Central Coast (Gosford area). Retired, about $23k from super. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES-eligible',
+    groundTruth: {
+      eligible: ['COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES_REBATE'],
+    },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'NORTHERN_BEACHES',
+      tenure_type: 'owner',
+      age: 73,
+      annual_income: 26000,
+    },
+    backstory:
+      "73, own my unit in Manly — Northern Beaches council. Retired, $26k a year. Born in Sydney, citizen.",
+  },
+  {
+    id: 'COUNCIL_SYDNEY_HARDSHIP-eligible',
+    groundTruth: { eligible: ['COUNCIL_SYDNEY_RATES_HARDSHIP'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'SYDNEY',
+      tenure_type: 'owner',
+      has_financial_hardship: true,
+    },
+    backstory:
+      "I own a small unit in Newtown, City of Sydney council. Lost my main income source recently and behind on rates. Citizen.",
+  },
+
   // ── Negative / boundary cases ───────────────────────────────────────────
   {
     id: 'FTB_A-ineligible-high-income',
@@ -304,14 +596,14 @@ export const DISRUPTION_LEVELS: Record<DisruptionLevel, DisruptionLevelDef> = {
       "Be minimal. Answer only what's asked, in as few words as possible. Don't volunteer extra context. Once or twice during the conversation, decline to answer with something like 'I'd rather not say' or 'dunno, mate'. You're not hostile — just guarded and tired.",
   },
   3: {
-    name: 'inconsistent',
+    name: 'typo-grammar',
     prompt:
-      "Once during the conversation — preferably after you've answered 2 or 3 questions — contradict yourself. Change a fact you stated earlier (e.g. 'actually wait, I'm 32, not 35' or 'oh hang on, I do have a kid — one, she's 7'). Phrase it like a natural correction or memory slip, not a deliberate lie. Stay otherwise cooperative.",
+      "Type like someone in a rush on a phone with autocorrect off. Heavy typos, dropped letters ('teh', 'thgouht'), no caps, missing punctuation, sms abbreviations ('thx', 'pls', 'rn', 'bk' for back, 'bc' for because, '2' for to/too, '4' for for). Broken grammar — sentence fragments, run-ons, no apostrophes. You still want help and your facts are coherent underneath — just the surface is messy. Example: 'lost my job a few mnths bk got 2 kids 5 n 7, rentnig in syd no idea what i can claim pls help'.",
   },
   4: {
     name: 'noisy-tangential',
     prompt:
-      "Go off-topic frequently. Mention hobbies, complain about the weather, share unrelated anecdotes, ask the advisor questions back ('what do you reckon?', 'is that common?'). Mix relevant facts in with the noise. You still want help, but you struggle to stay on track.",
+      "Go off-topic frequently. Mention hobbies, complain about the weather, share unrelated anecdotes, ask the advisor questions back ('what do you reckon?', 'is that common?'). Mix relevant facts in with the noise. ALSO — once during the conversation, after answering 2-3 questions — contradict yourself naturally ('actually wait, I'm 32 not 35' or 'oh hang on, I do have one kid'). Make it sound like a memory slip, not a lie. You still want help, you just struggle to stay on track.",
   },
   5: {
     name: 'adversarial',

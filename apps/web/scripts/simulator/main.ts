@@ -23,7 +23,7 @@ import { PERSONAS, DISRUPTION_LEVELS, type Persona } from './personas'
 const MAX_TURNS = 15
 const MODEL = process.env.ANTHROPIC_MODEL_ID ?? 'claude-sonnet-4-6'
 const EXTRACT_MODEL = MODEL // share model with prod /api/chat
-const SIM_TEMPERATURE = 0.7
+const SIM_TEMPERATURE = 0.9
 
 // ─────────────────────────────────────────────────────────────────────────
 // CLI parsing
