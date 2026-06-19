@@ -101,6 +101,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
+  const [isInputFocused, setIsInputFocused] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
   const lastPersistedRef = useRef<Set<string>>(new Set())
@@ -430,9 +431,20 @@ export function ChatPage({ schemes }: ChatPageProps) {
       <AppHeader onToast={addToast} />
 
       {/* ── Message thread (wrapped for smooth stage transitions) ── */}
+      {/* When the composer is focused, fade the thread so the user's
+          attention is on what they're typing. Chips are also disabled
+          while faded so a stray click doesn't fire mid-compose. */}
       <div
         className={`view-anim${leaving ? ' leaving' : ''}`}
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          opacity: isInputFocused ? 0.25 : 1,
+          pointerEvents: isInputFocused ? 'none' : 'auto',
+          transition: 'opacity 180ms ease',
+        }}
       >
         <MessageList
           messages={messages}
@@ -483,6 +495,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
               rows={1}
               placeholder="Reply to Benefits.AI…"
               aria-label="Reply to Benefits.AI"
