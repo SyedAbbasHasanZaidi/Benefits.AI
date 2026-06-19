@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:llm-judge": "vitest run --dir tests/llm-judge",
-    "sim": "tsx scripts/simulator/run.ts"
+    "sim": "tsx scripts/simulator/run.ts",
+    "sim:review": "tsx scripts/simulator/review.ts"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^1.0.0",
