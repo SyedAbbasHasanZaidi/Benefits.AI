@@ -35,6 +35,12 @@ export interface TurnContext {
   systemPrompt: string
   chips: string[]
   guidance: VariableGuidance | null
+  // Internals surfaced for tracing/replay. Existing consumers ignore unknown
+  // keys; production code paths are unaffected by their presence.
+  profileWithChip: ProfileVariables
+  extractedDelta: Partial<ProfileVariables>
+  rulesResult: RulesResult
+  chunks: CorpusChunk[]
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -422,5 +428,9 @@ export async function prepareTurn(
     systemPrompt,
     chips: nextQuestion?.chips ?? [],
     guidance: nextQuestion?.guidance ?? null,
+    profileWithChip,
+    extractedDelta,
+    rulesResult,
+    chunks,
   }
 }
