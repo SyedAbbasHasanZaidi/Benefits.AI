@@ -62,7 +62,10 @@ export class TraceWriter {
 
   constructor(filePath: string) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    this.stream = fs.createWriteStream(filePath, { flags: 'a' })
+    // 'w' truncates — re-running the same (persona × level) overwrites
+    // the prior trace rather than stacking multiple conversations into one
+    // file (which would confuse the reviewer's loadConversation logic).
+    this.stream = fs.createWriteStream(filePath, { flags: 'w' })
   }
 
   write(event: TraceEvent): void {

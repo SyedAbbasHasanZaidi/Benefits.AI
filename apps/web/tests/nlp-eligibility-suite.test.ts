@@ -51,6 +51,19 @@ const SCHEMES: SchemeMetadata[] = [
 
 const emptyTraces: RulesResult['traces'] = {}
 
+// Helper: build an EligibilityResult that says "one scheme needs these vars".
+// pickNextQuestion is now scheme-aware — it returns null unless some
+// needs_info scheme requires the variable. Tests of baseline/greedy ordering
+// need a synthetic eligibility object that lists the vars under test.
+function eligibilityNeeding(...vars: string[]): import('@/lib/orchestrator/turn').EligibilityResult {
+  return {
+    eligible: [],
+    needs_info: vars.length > 0 ? [{ schemeId: 'TEST_SCHEME', missingVars: vars }] : [],
+    ineligible: [],
+  }
+}
+const emptyEligibility = eligibilityNeeding()
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Chip mapping — covers every BRACKET_CHIPS, ENUM_CHIPS, and BINARY_CHIP_VARS
 // pattern the UI can produce.
@@ -178,6 +191,7 @@ describe('pickNextQuestion — baseline order', () => {
       {},
       [],
       emptyTraces,
+      eligibilityNeeding('is_australian_resident', 'age', 'employment_status', 'state', 'tenure_type'),
     )
     expect(q?.variable).toBe('is_australian_resident')
   })
@@ -188,22 +202,40 @@ describe('pickNextQuestion — baseline order', () => {
       { is_australian_resident: true },
       [],
       emptyTraces,
+      eligibilityNeeding('age', 'employment_status', 'state'),
     )
     expect(q?.variable).toBe('age')
   })
 
   it('produces Yes/No chips for binary variables', () => {
-    const q = pickNextQuestion(['is_australian_resident'], {}, [], emptyTraces)
+    const q = pickNextQuestion(
+      ['is_australian_resident'], {}, [], emptyTraces,
+      eligibilityNeeding('is_australian_resident'),
+    )
     expect(q?.chips).toEqual(['Yes', 'No', 'Not sure? →'])
   })
 
   it('produces bracket chips for numeric variables', () => {
-    const q = pickNextQuestion(['age'], { is_australian_resident: true }, [], emptyTraces)
+    const q = pickNextQuestion(
+      ['age'], { is_australian_resident: true }, [], emptyTraces,
+      eligibilityNeeding('age'),
+    )
     expect(q?.chips).toEqual(expect.arrayContaining(['18–22', '67+']))
   })
 
-  it('returns null when nothing missing', () => {
-    const q = pickNextQuestion([], {}, [], emptyTraces)
+  it('returns null when no needs_info schemes', () => {
+    const q = pickNextQuestion([], {}, [], emptyTraces, emptyEligibility)
+    expect(q).toBeNull()
+  })
+
+  it('returns null even with missing baseline vars if no scheme needs them (new scheme-aware behaviour)', () => {
+    const q = pickNextQuestion(
+      ['is_australian_resident', 'age'],
+      {},
+      [],
+      emptyTraces,
+      emptyEligibility,
+    )
     expect(q).toBeNull()
   })
 })
@@ -218,6 +250,7 @@ describe('pickNextQuestion — scheme intent detection', () => {
       { is_australian_resident: true, age: 30, employment_status: 'unemployed', state: 'NSW', tenure_type: 'renting' },
       [{ role: 'user', content: 'I just lost my job and applied for JobSeeker' }],
       traces,
+      eligibilityNeeding('annual_income', 'has_partner', 'has_disability'),
     )
     expect(q?.variable).toBe('annual_income')
   })
@@ -238,6 +271,7 @@ describe('pickNextQuestion — greedy fallback', () => {
       },
       [],
       traces,
+      eligibilityNeeding('has_disability', 'is_carer'),
     )
     expect(q?.variable).toBe('has_disability')
   })

@@ -163,6 +163,32 @@ function countSchemesByVariable(
   return counts
 }
 
+// Normalise enum-shaped fields so values match the OpenFisca rules engine's
+// expected casing. Sonnet extraction returns natural-language values
+// ("Blacktown", "nsw"); the rules engine matches enums case-sensitively
+// ("BLACKTOWN", "NSW"). Without this, council/state schemes silently miss
+// despite the user clearly stating the location.
+function normaliseEnumValues(p: ProfileVariables): ProfileVariables {
+  const out: ProfileVariables = { ...p }
+  if (typeof out.state === 'string') {
+    out.state = out.state.toUpperCase()
+  }
+  if (typeof out.council_lga === 'string') {
+    // 'Canterbury-Bankstown' / 'Canterbury Bankstown' → 'CANTERBURY_BANKSTOWN'
+    out.council_lga = out.council_lga
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g, '_')
+  }
+  if (typeof out.tenure_type === 'string') {
+    out.tenure_type = out.tenure_type.toLowerCase() as ProfileVariables['tenure_type']
+  }
+  if (typeof out.employment_status === 'string') {
+    out.employment_status = out.employment_status.toLowerCase() as ProfileVariables['employment_status']
+  }
+  return out
+}
+
 // ── Public exports ────────────────────────────────────────────────────────────
 
 export function pickNextQuestion(
@@ -170,10 +196,21 @@ export function pickNextQuestion(
   mergedProfile: ProfileVariables,
   history: LlmMessage[],
   traces: RulesResult['traces'],
+  eligibility: EligibilityResult,
 ): NextQuestion | null {
-  // Tier 1 — baseline: ask these first in fixed order
+  // Scheme-aware gating: only ask for variables that would unlock at least
+  // one scheme still in needs_info. If there's nothing left to unlock,
+  // intake is complete — the bot should deliver handoff for any eligible
+  // schemes and await the user's next message, not invent more questions.
+  const stillNeeded = new Set<string>()
+  for (const ni of eligibility.needs_info) {
+    for (const v of ni.missingVars) stillNeeded.add(v)
+  }
+  if (stillNeeded.size === 0) return null
+
+  // Tier 1 — baseline order, but ONLY for vars some needs_info scheme wants.
   for (const v of BASELINE_ORDER) {
-    if (!(v in mergedProfile) && missingVars.includes(v)) {
+    if (!(v in mergedProfile) && stillNeeded.has(v)) {
       return buildQuestion(v)
     }
   }
@@ -191,8 +228,10 @@ export function pickNextQuestion(
     }
   }
 
-  // Tier 3 — greedy: pick variable missing from most schemes
-  const remaining = missingVars.filter((v) => !(v in mergedProfile))
+  // Tier 3 — greedy: pick variable missing from most needs_info schemes
+  const remaining = missingVars.filter(
+    (v) => !(v in mergedProfile) && stillNeeded.has(v),
+  )
   if (remaining.length === 0) return null
 
   const counts = countSchemesByVariable(traces)
@@ -341,8 +380,9 @@ export function buildSystemPrompt(
 
 Rules:
 - The Current user profile JSON below is AUTHORITATIVE. If a field is present in that JSON, treat it as confirmed — do NOT re-ask the user for it, even if their literal message looks vague or ambiguous (e.g. "18-22" means a chip mapping was applied and the value is already in your profile JSON; trust that and move on). Only ask about fields that are absent from the profile JSON.
-- Tone: warm, conversational, human — like a knowledgeable friend, not a form. Briefly acknowledge what the user JUST said before moving on. Vary your openers; do NOT fall into a "Thanks for confirming!" / "Got it!" template every turn.
-- BANNED OPENERS (these are hallucinations unless the named fact is in the profile JSON): "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect back what the user wrote in their LAST message verbatim, but you may never reference earlier turns or hypothetical context that isn't currently in the profile JSON.
+- Tone: warm, conversational, human — like a knowledgeable friend, not a form. Briefly acknowledge what the user JUST said by reflecting a SPECIFIC piece of what they said back (e.g. "A teacher in Sydney — got that" / "Two kids under 5, that's a handful"). Do NOT use generic positive interjections.
+- BANNED HOLLOW OPENERS — these are templated affirmations that add no information and feel performative. Do NOT open with: "Love it!", "Good stuff!", "Nice!", "Nice, a classic Aussie setup!", "Got it!", "Good to hear!", "Ha, the [empty nest / single life / etc.]!", "Awesome!", "Perfect!", or any other generic exclamation. If you can't acknowledge something specific the user just said, just ask the next question directly with no opener at all.
+- BANNED FAKE-NOTED OPENERS (these are hallucinations unless the named fact is in the profile JSON): "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect back what the user wrote in their LAST message verbatim, but you may never reference earlier turns or hypothetical context that isn't currently in the profile JSON.
 - Ask AT MOST ONE question per response — the specified next question below, when one is given. Do NOT swap it for a different topic. If no next question is given, do not invent one.
 - Stop the question loop the moment a scheme is eligible. When the Eligibility results below show any scheme in "Appears eligible", direct the user to that scheme on the eligibility meter and explain the next step to claim it (the handoff). Use the Official sources below for handoff wording. Then await their next message rather than asking another slot-filling question.
 - Treat OpenFisca as the source of truth. Never decide eligibility yourself; only repeat what the Eligibility results below say. Use phrases like "you appear eligible" or "you may qualify" — never definitive.
@@ -378,7 +418,7 @@ export async function prepareTurn(
   // 2. Extract structured variables from user prose
   const extractedDelta = await extract(userMessage, profileWithChip, llm)
   const fullDelta: Partial<ProfileVariables> = { ...chipDelta, ...extractedDelta }
-  const merged = mergeProfile(profileWithChip, extractedDelta)
+  const merged = normaliseEnumValues(mergeProfile(profileWithChip, extractedDelta))
 
   // 3. Call rules engine
   const rulesUrl = process.env.RULES_SERVICE_URL ?? 'http://localhost:8001'
@@ -404,6 +444,7 @@ export async function prepareTurn(
     merged,
     history,
     rulesResult.traces,
+    eligibility,
   )
 
   // 5. Fetch corpus chunks scoped to eligible + needs-info schemes
