@@ -16,6 +16,8 @@ export async function POST(req: Request) {
     messages: Array<{ role: string; content: string; id?: string }>
     profile?: ProfileVariables
     lastAskedVariable?: keyof ProfileVariables
+    askedStreak?: Record<string, number>
+    skippedAt?: Record<string, number>
   }
 
   try {
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { messages, profile = {}, lastAskedVariable } = body
+  const { messages, profile = {}, lastAskedVariable, askedStreak = {}, skippedAt = {} } = body
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json({ error: 'messages required' }, { status: 400 })
@@ -46,7 +48,10 @@ export async function POST(req: Request) {
   // inferences like "I was 17 but just had my birthday" → age 18. The cost
   // delta (~$0.003 vs $0.0005 per turn) is acceptable at MVP scale.
   const llm = new AnthropicProvider('claude-sonnet-4-6')
-  const ctx = await prepareTurn(userMessage, profile, history, llm, chipDelta)
+  const ctx = await prepareTurn(
+    userMessage, profile, history, llm, chipDelta,
+    lastAskedVariable ?? null, askedStreak, skippedAt,
+  )
 
   const data = new StreamData()
   data.append({
@@ -55,6 +60,8 @@ export async function POST(req: Request) {
     chips: ctx.chips,
     guidance: ctx.guidance,
     guidanceVariable: ctx.nextQuestion?.variable ?? null,
+    askedStreak: ctx.askedStreak,
+    skippedAt: ctx.skippedAt,
   } as unknown as import('ai').JSONValue)
 
   const coreMessages = messages

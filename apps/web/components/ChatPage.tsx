@@ -30,6 +30,8 @@ interface PersistedState {
   guidance: VariableGuidance | null
   lastAskedVariable: keyof ProfileVariables | null
   eligibility: EligibilityResult | null
+  askedStreak: Record<string, number>
+  skippedAt: Record<string, number>
 }
 
 function loadSession(): PersistedState | null {
@@ -52,6 +54,8 @@ interface StreamPayload {
   chips?: string[]
   guidance?: VariableGuidance | null
   guidanceVariable?: keyof ProfileVariables | null
+  askedStreak?: Record<string, number>
+  skippedAt?: Record<string, number>
 }
 
 interface ChatPageProps {
@@ -91,6 +95,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [chips, setChips] = useState<string[]>(restored?.chips ?? [])
   const [guidance, setGuidance] = useState<VariableGuidance | null>(restored?.guidance ?? null)
   const [lastAskedVariable, setLastAskedVariable] = useState<keyof ProfileVariables | null>(restored?.lastAskedVariable ?? null)
+  const [askedStreak, setAskedStreak] = useState<Record<string, number>>(restored?.askedStreak ?? {})
+  const [skippedAt, setSkippedAt] = useState<Record<string, number>>(restored?.skippedAt ?? {})
   const [showGuidance, setShowGuidance] = useState(false)
   const [histOpen, setHistOpen] = useState(false)
   const [voiceOn, setVoiceOn] = useState(false)
@@ -108,8 +114,12 @@ export function ChatPage({ schemes }: ChatPageProps) {
 
   const profileRef = useRef(profile)
   const lastAskedRef = useRef(lastAskedVariable)
+  const askedStreakRef = useRef(askedStreak)
+  const skippedAtRef = useRef(skippedAt)
   profileRef.current = profile
   lastAskedRef.current = lastAskedVariable
+  askedStreakRef.current = askedStreak
+  skippedAtRef.current = skippedAt
 
   const { messages, append, isLoading, data, setMessages } = useChat({
     api: '/api/chat',
@@ -118,6 +128,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
       const body = JSON.parse((options?.body as string) ?? '{}') as Record<string, unknown>
       body.profile = profileRef.current
       body.lastAskedVariable = lastAskedRef.current
+      body.askedStreak = askedStreakRef.current
+      body.skippedAt = skippedAtRef.current
       return fetch(url, { ...options, body: JSON.stringify(body) })
     },
   })
@@ -125,7 +137,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   // Persist every state change to sessionStorage
   useEffect(() => {
     if (messages.length > 1 || profile && Object.keys(profile).length > 0) {
-      saveSession({ messages, profile, chips, guidance, lastAskedVariable, eligibility })
+      saveSession({ messages, profile, chips, guidance, lastAskedVariable, eligibility, askedStreak, skippedAt })
     }
   }, [messages, profile, chips, guidance, lastAskedVariable, eligibility])
 
@@ -208,6 +220,12 @@ export function ChatPage({ schemes }: ChatPageProps) {
     }
     if (payload.guidanceVariable !== undefined) {
       setLastAskedVariable(payload.guidanceVariable ?? null)
+    }
+    if (payload.askedStreak !== undefined) {
+      setAskedStreak(payload.askedStreak)
+    }
+    if (payload.skippedAt !== undefined) {
+      setSkippedAt(payload.skippedAt)
     }
   }, [data])
 
@@ -374,6 +392,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
     localStorage.removeItem(SESSION_KEY)
     setMessages([])
     setProfile({}); setEligibility(null); setChips([]); setGuidance(null); setLastAskedVariable(null)
+    setAskedStreak({}); setSkippedAt({})
     setResults(null)
     setStage('conversation')
     setConversationId(null)

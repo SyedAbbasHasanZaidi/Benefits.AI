@@ -41,6 +41,9 @@ export interface TurnContext {
   extractedDelta: Partial<ProfileVariables>
   rulesResult: RulesResult
   chunks: CorpusChunk[]
+  // Skip-tracking state — must be echoed back by the client on the next turn.
+  askedStreak: Record<string, number>
+  skippedAt: Record<string, number>
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -197,6 +200,7 @@ export function pickNextQuestion(
   history: LlmMessage[],
   traces: RulesResult['traces'],
   eligibility: EligibilityResult,
+  skippedAt: Record<string, number> = {},
 ): NextQuestion | null {
   // Scheme-aware gating: only ask for variables that would unlock at least
   // one scheme still in needs_info. If there's nothing left to unlock,
@@ -208,9 +212,13 @@ export function pickNextQuestion(
   }
   if (stillNeeded.size === 0) return null
 
+  // Variables on skip cooldown (asked twice without answer; re-enabled after
+  // 3 new profile fills — see prepareTurn). Exclude them from all tiers.
+  const onCooldown = (v: string) => v in skippedAt
+
   // Tier 1 — baseline order, but ONLY for vars some needs_info scheme wants.
   for (const v of BASELINE_ORDER) {
-    if (!(v in mergedProfile) && stillNeeded.has(v)) {
+    if (!(v in mergedProfile) && stillNeeded.has(v) && !onCooldown(v)) {
       return buildQuestion(v)
     }
   }
@@ -221,7 +229,7 @@ export function pickNextQuestion(
     const intentTrace = traces[intentSchemeId]
     if (intentTrace?.missing) {
       for (const v of intentTrace.missing) {
-        if (!(v in mergedProfile)) {
+        if (!(v in mergedProfile) && !onCooldown(v)) {
           return buildQuestion(v as keyof ProfileVariables)
         }
       }
@@ -230,7 +238,7 @@ export function pickNextQuestion(
 
   // Tier 3 — greedy: pick variable missing from most needs_info schemes
   const remaining = missingVars.filter(
-    (v) => !(v in mergedProfile) && stillNeeded.has(v),
+    (v) => !(v in mergedProfile) && stillNeeded.has(v) && !onCooldown(v),
   )
   if (remaining.length === 0) return null
 
@@ -384,7 +392,6 @@ Rules:
 - BANNED HOLLOW OPENERS: these are templated affirmations that add no information and feel performative. Do NOT open with: "Love it!", "Good stuff!", "Nice!", "Nice, a classic Aussie setup!", "Got it!", "Good to hear!", "Ha, the [empty nest / single life / etc.]!", "Awesome!", "Perfect!", or any other generic exclamation. If you can't acknowledge something specific the user just said, just ask the next question directly with no opener at all.
 - BANNED FAKE-NOTED OPENERS (these are hallucinations unless the named fact is in the profile JSON): "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect back what the user wrote in their LAST message verbatim, but you may never reference earlier turns or hypothetical context that isn't currently in the profile JSON.
 - NO EM DASHES: never use the em dash character in any response. Use commas, semicolons, colons, or a plain hyphen instead.
-- MAX TWO ATTEMPTS PER QUESTION: if the next question below is about a variable you have already asked in your last two assistant turns and it is still absent from the profile JSON, do NOT ask it a third time. Instead, acknowledge briefly that you will work with the information available and move on naturally. Rephrasing the same question does not reset the count.
 - Ask AT MOST ONE question per response: the specified next question below, when one is given. Do NOT swap it for a different topic. If no next question is given, do not invent one.
 - Stop the question loop the moment a scheme is eligible. When the Eligibility results below show any scheme in "Appears eligible", direct the user to that scheme on the eligibility meter and explain the next step to claim it (the handoff). Use the Official sources below for handoff wording. Then await their next message rather than asking another slot-filling question.
 - Treat OpenFisca as the source of truth. Never decide eligibility yourself; only repeat what the Eligibility results below say. Use phrases like "you appear eligible" or "you may qualify"; never use definitive language.
@@ -407,12 +414,19 @@ ${nextQ}`
 
 // ── prepareTurn ───────────────────────────────────────────────────────────────
 
+// How many new profile fields must be filled after a skip before the
+// skipped variable re-enters the question rotation.
+const SKIP_COOLDOWN_DEPTH = 3
+
 export async function prepareTurn(
   userMessage: string,
   currentProfile: ProfileVariables,
   history: LlmMessage[],
   llm: LlmProvider,
   chipDelta: Partial<ProfileVariables> = {},
+  lastAskedVariable: keyof ProfileVariables | null = null,
+  askedStreak: Record<string, number> = {},
+  skippedAt: Record<string, number> = {},
 ): Promise<TurnContext> {
   // 1. Apply chip answer first (pre-mapped, bypasses noisy extraction)
   const profileWithChip = mergeProfile(currentProfile, chipDelta)
@@ -421,6 +435,35 @@ export async function prepareTurn(
   const extractedDelta = await extract(userMessage, profileWithChip, llm)
   const fullDelta: Partial<ProfileVariables> = { ...chipDelta, ...extractedDelta }
   const merged = normaliseEnumValues(mergeProfile(profileWithChip, extractedDelta))
+
+  // 2b. Update skip-tracking state based on whether the previously asked
+  //     variable was answered in this turn.
+  const profileSize = Object.keys(merged).length
+  const newAskedStreak: Record<string, number> = { ...askedStreak }
+  const newSkippedAt: Record<string, number> = { ...skippedAt }
+
+  // Re-enable variables whose cooldown has expired (3 new profile fills)
+  for (const [v, skippedSize] of Object.entries(newSkippedAt)) {
+    if (profileSize - skippedSize >= SKIP_COOLDOWN_DEPTH) {
+      delete newSkippedAt[v]
+      delete newAskedStreak[v]
+    }
+  }
+
+  if (lastAskedVariable) {
+    if (lastAskedVariable in merged) {
+      // User answered — clear any skip tracking for this variable
+      delete newAskedStreak[lastAskedVariable]
+      delete newSkippedAt[lastAskedVariable]
+    } else if (!(lastAskedVariable in newSkippedAt)) {
+      // Still unanswered and not yet on cooldown — increment streak
+      newAskedStreak[lastAskedVariable] = (newAskedStreak[lastAskedVariable] ?? 0) + 1
+      if (newAskedStreak[lastAskedVariable] >= 2) {
+        // Two asks without an answer: put on cooldown
+        newSkippedAt[lastAskedVariable] = profileSize
+      }
+    }
+  }
 
   // 3. Call rules engine
   const rulesUrl = process.env.RULES_SERVICE_URL ?? 'http://localhost:8001'
@@ -440,13 +483,14 @@ export async function prepareTurn(
 
   const eligibility = toEligibilityResult(rulesResult)
 
-  // 4. Pick next question
+  // 4. Pick next question (skip-cooldown vars excluded via newSkippedAt)
   const nextQuestion = pickNextQuestion(
     rulesResult.missing_variables,
     merged,
     history,
     rulesResult.traces,
     eligibility,
+    newSkippedAt,
   )
 
   // 5. Fetch corpus chunks scoped to eligible + needs-info schemes
@@ -476,5 +520,7 @@ export async function prepareTurn(
     extractedDelta,
     rulesResult,
     chunks,
+    askedStreak: newAskedStreak,
+    skippedAt: newSkippedAt,
   }
 }
