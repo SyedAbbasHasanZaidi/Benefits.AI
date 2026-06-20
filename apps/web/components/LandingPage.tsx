@@ -253,17 +253,18 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Prompt pills — hide when the input is focused OR the user has
-              typed something. Restore when blurred + empty. */}
+          {/* Prompt pills — hide ONLY while the textarea is focused.
+              Restore on blur, regardless of whether the user has typed
+              anything. */}
           <div
             className="dimmable no-pointer"
             style={{
               '--d': '200ms',
-              opacity: focused || input.trim() ? 0 : 1,
-              pointerEvents: focused || input.trim() ? 'none' : 'auto',
+              opacity: focused ? 0 : 1,
+              pointerEvents: focused ? 'none' : 'auto',
               transition: 'opacity 280ms ease',
             } as React.CSSProperties}
-            aria-hidden={focused || !!input.trim()}
+            aria-hidden={focused}
           >
             <div style={{ marginTop: 22, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 9 }}>
               {PROMPTS.map((p) => (
