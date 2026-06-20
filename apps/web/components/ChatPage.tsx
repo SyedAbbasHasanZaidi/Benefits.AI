@@ -98,6 +98,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [stage, setStage] = useState<Stage>('conversation')
   const [displayStage, setDisplayStage] = useState<Stage>('conversation')
   const [leaving, setLeaving] = useState(false)
+  const [discoveryDone, setDiscoveryDone] = useState(false)
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
@@ -318,6 +319,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
    */
   const runAssessment = useCallback(async () => {
     setStage('discovering')
+    setDiscoveryDone(false)
     try {
       const res = await fetch('/api/eligibility/assess', {
         method: 'POST',
@@ -330,6 +332,11 @@ export function ChatPage({ schemes }: ChatPageProps) {
       if (!res.ok) throw new Error(`assess ${res.status}`)
       const data = (await res.json()) as ResultsData
       setResults(data)
+      // Signal Discovery that all steps are done — it checks off all 5 ticks.
+      // Hold on the completed screen for 650ms so the user sees it, then
+      // the normal view-anim cross-fade carries them to Results.
+      setDiscoveryDone(true)
+      await new Promise<void>((r) => setTimeout(r, 650))
       setStage('results')
     } catch (err) {
       console.error('assessment failed', err)
@@ -340,7 +347,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
       setStage('conversation')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [conversationId])
 
   function restartAssessment() {
     localStorage.removeItem(SESSION_KEY)
@@ -393,7 +400,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
       }}>
         <AppHeader onToast={addToast} />
         <div className={`view-anim${leaving ? ' leaving' : ''}`}>
-          <Discovery done={false} />
+          <Discovery done={discoveryDone} />
         </div>
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>

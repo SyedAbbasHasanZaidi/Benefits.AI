@@ -41,8 +41,14 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   return out
 }
 
+// Strip internal citation tags like [SCHEME_ID] and [src:chunk_id] that the
+// LLM embeds for pipeline traceability but should not reach the user.
+function stripCitationTags(text: string): string {
+  return text.replace(/\[(?:src:)?[A-Z][A-Z0-9_]{1,}(?::[^\]]+)?\]/g, '').replace(/ {2,}/g, ' ').trim()
+}
+
 function renderMarkdown(text: string): React.ReactNode {
-  const lines = text.split('\n')
+  const lines = stripCitationTags(text).split('\n')
   return lines.map((line, i) => (
     <React.Fragment key={i}>
       {renderInline(line, `l${i}`)}

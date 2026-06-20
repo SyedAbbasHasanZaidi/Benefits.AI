@@ -84,7 +84,19 @@ Output: {}
 
 Example 11 — "just had my birthday" / "just turned" implies age + 1:
 User: "I was 17 but just had my birthday"
-Output: {"age":18}`
+Output: {"age":18}
+
+Example 12 — user-typed RANGES are ambiguous, never collapse them to a midpoint. Only a literally stated single value counts. Ranges must be OMITTED so the bot can ask for clarification. This rule applies to every numeric field (age, annual_income, rent_paid_fortnightly, number_of_children, youngest_child_age, hours_worked_per_week):
+User: "18-23"
+Output: {}
+User: "somewhere between 25 and 30"
+Output: {}
+User: "I earn $40-60k"
+Output: {}
+User: "I'm in my late 20s"
+Output: {}
+User: "around 30 hours a week"
+Output: {"hours_worked_per_week":30}   // a single approximate value is fine; a RANGE is not`
 
 export async function extract(
   userMessage: string,

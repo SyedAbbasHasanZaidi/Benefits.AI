@@ -24,7 +24,7 @@
  *   </div>
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const STYLE_ID = 'eligibility-orb-styles'
 
@@ -112,8 +112,28 @@ export default function EligibilityOrb({
 }: EligibilityOrbProps) {
   useEffect(injectStyles, [])
 
+  // Two-phase eligible transition: fill to 100% first (850ms clip-path
+  // animation), then switch to green. Without this, the color and fill start
+  // simultaneously and the water snaps green before it's full.
+  const prevEligibleRef = useRef(eligible)
+  const [greenPhase, setGreenPhase] = useState(eligible)
+
+  useEffect(() => {
+    if (eligible && !prevEligibleRef.current) {
+      // Just became eligible — keep accent color while fill animates up
+      setGreenPhase(false)
+      const t = setTimeout(() => setGreenPhase(true), 920)
+      prevEligibleRef.current = true
+      return () => clearTimeout(t)
+    }
+    if (!eligible) {
+      prevEligibleRef.current = false
+      setGreenPhase(false)
+    }
+  }, [eligible])
+
   const v = eligible ? 100 : clamp(Math.round(value), 0, 100)
-  const color = eligible ? eligibleColor : accent
+  const color = greenPhase ? eligibleColor : accent
   const waveH = Math.max(6, Math.round(size * 0.2))
   const fillPx = (size * v) / 100
   const clickable = eligible && typeof onClick === 'function'
@@ -148,7 +168,7 @@ export default function EligibilityOrb({
           <path d={WAVE_PATH} />
         </svg>
       </div>
-      <div className={`eo-check ${eligible ? 'on' : ''}`} aria-hidden="true">
+      <div className={`eo-check ${greenPhase ? 'on' : ''}`} aria-hidden="true">
         <svg
           width={Math.round(size * 0.48)}
           height={Math.round(size * 0.48)}
@@ -159,7 +179,7 @@ export default function EligibilityOrb({
           <path d="m5 12.5 4.5 4.5L19 7" />
         </svg>
       </div>
-      {clickable && <span className="eo-ready" aria-hidden="true" />}
+      {clickable && greenPhase && <span className="eo-ready" aria-hidden="true" />}
     </div>
   )
 
