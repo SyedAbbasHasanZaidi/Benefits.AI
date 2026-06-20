@@ -142,6 +142,27 @@ export function ChatPage({ schemes }: ChatPageProps) {
     return () => clearTimeout(t)
   }, [stage, displayStage])
 
+  // ── Global Enter-to-send ───────────────────────────────────────────────────
+  // When focus is anywhere on the page that isn't an interactive element
+  // (e.g. after clicking a chip or tapping the message thread), pressing
+  // Enter should still send — matching the UX of standard chat apps.
+  useEffect(() => {
+    function onGlobalKey(e: KeyboardEvent) {
+      if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
+      const tag = (e.target as HTMLElement).tagName
+      // Let Enter work normally inside other textareas, inputs, selects, and buttons
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON') return
+      e.preventDefault()
+      inputRef.current?.focus()
+      // Flush synchronously so handleSend reads the current input value
+      handleSend()
+    }
+    window.addEventListener('keydown', onGlobalKey)
+    return () => window.removeEventListener('keydown', onGlobalKey)
+  // handleSend reads input via closure; re-register whenever it changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, isLoading])
+
   // Auto-send initial message from landing page, or open a saved conversation
   useEffect(() => {
     if (initialSentRef.current) return
