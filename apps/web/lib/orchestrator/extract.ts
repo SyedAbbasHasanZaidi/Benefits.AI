@@ -66,9 +66,9 @@ Example 6:vague frequency, omit numeric (do NOT set hours_worked_per_week or emp
 User: "I've been picking up shifts here and there."
 Output: {}
 
-Example 7:super/dividends are NOT annual_income (annual_income means employment income; investment income is out-of-model):
-User: "I'm 70, retired. Super pays me $30k a year and I have $200k in shares paying dividends."
-Output: {"age":70,"employment_status":"retired"}
+Example 7:super/pension drawdowns and employment income both count as annual_income for Centrelink. Extract the total annual income from all regular sources:
+User: "I'm 70, retired. Super pays me $30k a year."
+Output: {"age":70,"employment_status":"retired","annual_income":30000}
 
 Example 8:refusal / "don't know" never re-fills from prior turns:
 User: "I'd rather not say."
@@ -96,7 +96,21 @@ Output: {}
 User: "I'm in my late 20s"
 Output: {}
 User: "around 30 hours a week"
-Output: {"hours_worked_per_week":30}   // a single approximate value is fine; a RANGE is not`
+Output: {"hours_worked_per_week":30}   // a single approximate value is fine; a RANGE is not
+
+Example 13:abbreviated income amounts ("k" suffix, with or without "$"):
+User: "i get bout 25k a yr frm super"
+Output: {"annual_income":25000,"employment_status":"retired"}
+User: "earnt maybe 5k since i got made redundant, before that was on 75k"
+Output: {"annual_income":5000,"employment_status":"unemployed"}
+Note: when two income figures are present (a prior job and a current situation), extract the CURRENT/MOST RECENT one only.
+
+Example 14:statements of no income or near-zero — do NOT set annual_income:0 unless a specific zero figure is given:
+User: "no income coming in basically, just that small cash work"
+Output: {"employment_status":"unemployed"}
+User: "I'm not working at all right now"
+Output: {"employment_status":"unemployed"}
+Note: "no income" alone is not sufficient to set annual_income:0 — the user may have other income sources not yet mentioned. Only set annual_income when a specific figure is given.`
 
 export async function extract(
   userMessage: string,

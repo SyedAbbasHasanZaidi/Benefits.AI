@@ -129,7 +129,7 @@ const STRAIGHTFORWARD: TestCase[] = [
       age: 71,
       employment_status: 'retired',
       has_partner: true,
-      tenure_type: 'owner',
+      tenure_type: 'owning',
       state: 'NSW',
       is_australian_resident: true,
     },
@@ -598,7 +598,7 @@ const BOUNDARY: TestCase[] = [
     category: 'boundary',
     name: 'Rent Assistance — owner (ineligible)',
     initialProfile: {
-      is_australian_resident: true, tenure_type: 'owner',
+      is_australian_resident: true, tenure_type: 'owning',
       age: 35, employment_status: 'unemployed', annual_income: 12000,
     },
     userMessages: ['Anything?'],
@@ -612,7 +612,7 @@ const BOUNDARY: TestCase[] = [
     initialProfile: {
       is_australian_resident: true, state: 'NSW',
       age: 70, employment_status: 'retired',
-      tenure_type: 'owner', has_financial_hardship: true,
+      tenure_type: 'owning', has_financial_hardship: true,
       annual_income: 0, number_of_children: 0,
     },
     userMessages: ['Anything I qualify for?'],
@@ -626,7 +626,7 @@ const BOUNDARY: TestCase[] = [
     initialProfile: {
       is_australian_resident: true, state: 'VIC',
       age: 70, employment_status: 'retired',
-      tenure_type: 'owner', has_financial_hardship: true,
+      tenure_type: 'owning', has_financial_hardship: true,
     },
     userMessages: ['Anything I qualify for?'],
     forbiddenEligible: ['NSW_LOW_INCOME_HOUSEHOLD_REBATE'],
