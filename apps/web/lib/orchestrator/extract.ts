@@ -28,7 +28,7 @@ Schema (extract only these keys):
   annual_income           number          (annual AUD)
   state                   string          (e.g. "NSW", "VIC")
   council_lga             string          (e.g. "Blacktown", "Sydney")
-  tenure_type             "renting" | "owner" | "boarding"
+  tenure_type             "renting" | "owning" | "boarding"
   rent_paid_fortnightly   number          (AUD per fortnight)
   number_of_children      number
   youngest_child_age      number

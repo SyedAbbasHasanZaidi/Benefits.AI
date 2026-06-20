@@ -85,7 +85,7 @@ describe('mapChipToVariable — binary chips', () => {
 describe('mapChipToVariable — enum chips', () => {
   it.each([
     ['tenure_type', 'Renting', { tenure_type: 'renting' }],
-    ['tenure_type', 'Own my home', { tenure_type: 'owner' }],
+    ['tenure_type', 'Own my home', { tenure_type: 'owning' }],
     ['tenure_type', 'Boarding', { tenure_type: 'boarding' }],
     ['employment_status', 'Employed', { employment_status: 'employed' }],
     ['employment_status', 'Retired', { employment_status: 'retired' }],
@@ -430,7 +430,7 @@ describe('Boundary — Rent Assistance by tenure_type', () => {
     const r = transformToResults(
       { eligible: [], needs_info: [], ineligible: ['RENT_ASSISTANCE'] },
       SCHEMES,
-      { is_australian_resident: true, tenure_type: 'owner' },
+      { is_australian_resident: true, tenure_type: 'owning' },
     )
     expect(r.programs).toHaveLength(0)
   })

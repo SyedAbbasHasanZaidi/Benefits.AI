@@ -1,4 +1,4 @@
-export type TenureType = 'renting' | 'owner' | 'boarding'
+export type TenureType = 'renting' | 'owning' | 'boarding'
 export type EmploymentStatus = 'employed' | 'retired' | 'unemployed' | 'student'
 
 export interface ProfileVariables {

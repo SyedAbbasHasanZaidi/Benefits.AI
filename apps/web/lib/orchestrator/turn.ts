@@ -334,7 +334,7 @@ export function mapChipToVariable(
 
   if (variable === 'tenure_type') {
     if (lower.includes('rent')) return { tenure_type: 'renting' }
-    if (lower.includes('own')) return { tenure_type: 'owner' }
+    if (lower.includes('own')) return { tenure_type: 'owning' }
     if (lower.includes('board')) return { tenure_type: 'boarding' }
   }
 
