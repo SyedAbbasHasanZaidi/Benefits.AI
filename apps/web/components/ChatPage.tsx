@@ -101,7 +101,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
-  const [isInputFocused, setIsInputFocused] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
   const lastPersistedRef = useRef<Set<string>>(new Set())
@@ -431,21 +430,9 @@ export function ChatPage({ schemes }: ChatPageProps) {
       <AppHeader onToast={addToast} />
 
       {/* ── Message thread (wrapped for smooth stage transitions) ── */}
-      {/* When the composer is focused (focus is anywhere inside the dock —
-          textarea or voice/send buttons), hide the thread entirely so the
-          user's full attention is on what they're typing. Chips are
-          disabled while hidden so a stray click doesn't fire mid-compose. */}
       <div
         className={`view-anim${leaving ? ' leaving' : ''}`}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          minHeight: 0,
-          opacity: isInputFocused ? 0 : 1,
-          pointerEvents: isInputFocused ? 'none' : 'auto',
-          transition: 'opacity 180ms ease',
-        }}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
       >
         <MessageList
           messages={messages}
@@ -489,20 +476,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
               style={{
                 display: 'flex', alignItems: 'flex-end', gap: 6,
                 padding: '7px 8px 7px 18px',
-              }}
-              // React's onFocus/onBlur on a parent use focusin/focusout (which
-              // bubble), so focus moving between the textarea and the voice/send
-              // buttons within the dock counts as "still focused". Without this,
-              // clicking send blurs the textarea momentarily and the thread
-              // flickers back on. Using relatedTarget on blur catches when focus
-              // truly leaves the dock subtree (relatedTarget === null OR not a
-              // descendant of currentTarget).
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={(e) => {
-                const next = e.relatedTarget as Node | null
-                if (!next || !e.currentTarget.contains(next)) {
-                  setIsInputFocused(false)
-                }
               }}
             >
             <textarea
