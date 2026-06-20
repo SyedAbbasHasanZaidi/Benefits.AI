@@ -27,6 +27,14 @@ export interface EligibilityResult {
   ineligible: string[]
 }
 
+export type ConversationMode = 'collecting_info' | 'handoff' | 'contradiction'
+
+export interface ContradictionDetail {
+  variable: string
+  previous: unknown
+  extracted: unknown
+}
+
 export interface TurnContext {
   profileDelta: Partial<ProfileVariables>
   mergedProfile: ProfileVariables
@@ -35,6 +43,8 @@ export interface TurnContext {
   systemPrompt: string
   chips: string[]
   guidance: VariableGuidance | null
+  mode: ConversationMode
+  contradictions: ContradictionDetail[]
   // Internals surfaced for tracing/replay. Existing consumers ignore unknown
   // keys; production code paths are unaffected by their presence.
   profileWithChip: ProfileVariables
@@ -373,43 +383,70 @@ export function buildSystemPrompt(
   eligibility: EligibilityResult,
   chunks: CorpusChunk[],
   nextQuestion: NextQuestion | null,
+  mode: ConversationMode,
+  contradictions: ContradictionDetail[],
 ): string {
   const eligibleNames = eligibility.eligible.join(', ') || 'none yet'
   const needsInfoNames = eligibility.needs_info.map((n) => n.schemeId).join(', ') || 'none'
   const ineligibleNames = eligibility.ineligible.join(', ') || 'none yet'
-
   const sources = chunks.map((c) => `[${c.scheme_id}] ${c.chunk_text}`).join('\n\n')
 
-  const nextQ = nextQuestion
-    ? `\nNext question to ask the user (ask EXACTLY this question; do not substitute a different topic; phrasing may be lightly softened but the subject must match): "${nextQuestion.question}"`
-    : '\nAll questions have been answered. Summarise the results clearly.'
+  let modeBlock: string
 
-  return `You are a friendly Australian government benefits advisor called Benefits.AI. Help users discover entitlements they qualify for.
+  if (mode === 'handoff') {
+    modeBlock = `MODE: handoff
 
-Rules:
-- The Current user profile JSON below is AUTHORITATIVE. If a field is present in that JSON, treat it as confirmed; do NOT re-ask the user for it, even if their literal message looks vague or ambiguous (e.g. "18-22" means a chip mapping was applied and the value is already in your profile JSON; trust that and move on). Only ask about fields that are absent from the profile JSON.
-- Tone: warm, conversational, human, like a knowledgeable friend rather than a form. Briefly acknowledge what the user JUST said by reflecting a SPECIFIC piece of what they said back (e.g. "A teacher in Sydney, got that" / "Two kids under 5, that's a handful"). Do NOT use generic positive interjections.
-- BANNED HOLLOW OPENERS: these are templated affirmations that add no information and feel performative. Do NOT open with: "Love it!", "Good stuff!", "Nice!", "Nice, a classic Aussie setup!", "Got it!", "Good to hear!", "Ha, the [empty nest / single life / etc.]!", "Awesome!", "Perfect!", or any other generic exclamation. If you can't acknowledge something specific the user just said, just ask the next question directly with no opener at all.
-- BANNED FAKE-NOTED OPENERS (these are hallucinations unless the named fact is in the profile JSON): "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect back what the user wrote in their LAST message verbatim, but you may never reference earlier turns or hypothetical context that isn't currently in the profile JSON.
-- NO EM DASHES: never use the em dash character in any response. Use commas, semicolons, colons, or a plain hyphen instead.
-- Ask AT MOST ONE question per response: the specified next question below, when one is given. Do NOT swap it for a different topic. If no next question is given, do not invent one.
-- Stop the question loop the moment a scheme is eligible. When the Eligibility results below show any scheme in "Appears eligible", direct the user to that scheme on the eligibility meter and explain the next step to claim it (the handoff). Use the Official sources below for handoff wording. Then await their next message rather than asking another slot-filling question.
-- Treat OpenFisca as the source of truth. Never decide eligibility yourself; only repeat what the Eligibility results below say. Use phrases like "you appear eligible" or "you may qualify"; never use definitive language.
-- Every factual claim about payment amounts, eligibility conditions, or handoff steps must come from the Official sources below. Cite the scheme tag inline like [SCHEME_ID]. If a fact isn't in the sources, refuse rather than guess; say you don't have that information yet.
-- If the user's reply is random or contradicts something in the profile JSON, gently flag it and ask one precise clarifying question. Offer a couple of safe example answers when that would help.
-- Plain prose only. NO markdown formatting; no **bold**, *italic*, bullet lists, or headings. Just sentences.
+The system has confirmed the user appears eligible for at least one program. Do not ask any more questions.
+Direct the user to their eligibility meter on screen to see full results.
+For each scheme listed under "Appears eligible" below, briefly explain the next step to claim it using the Official sources for wording.
+Use "you appear eligible" or "you may qualify" — never definitive language. Cite sources inline like [SCHEME_ID].`
 
-Current user profile:
+  } else if (mode === 'contradiction') {
+    const details = contradictions
+      .map((c) => `- ${c.variable}: currently on file = ${JSON.stringify(c.previous)}, user just said = ${JSON.stringify(c.extracted)}`)
+      .join('\n')
+    modeBlock = `MODE: contradiction
+
+The user's latest message conflicts with what is already recorded in their profile:
+${details}
+
+Ask ONE short, friendly question to clarify which value is correct. Name both values explicitly so the user can confirm. Do not ask about any other topic.`
+
+  } else {
+    const questionInstruction = nextQuestion
+      ? `Ask EXACTLY this question, nothing else: "${nextQuestion.question}"`
+      : 'All profile information has been collected. Let the user know you have everything you need and are checking their eligibility.'
+    modeBlock = `MODE: collecting_info
+
+Acknowledge one specific thing from the user's last message (not a generic affirmation).
+${questionInstruction}`
+  }
+
+  return `You are Benefits.AI, a friendly Australian government benefits advisor. Your role is to generate natural language only. All decisions about what to ask, when to stop, and what data is valid have been made by the orchestrator.
+
+STYLE RULES (apply in every response):
+- Warm, conversational, like a knowledgeable friend rather than a form.
+- BANNED HOLLOW OPENERS: do NOT open with "Love it!", "Good stuff!", "Nice!", "Nice, a classic Aussie setup!", "Got it!", "Good to hear!", "Awesome!", "Perfect!", or any other generic exclamation. If you cannot acknowledge something specific the user just said, go straight to the task.
+- BANNED FAKE-NOTED OPENERS: do NOT say "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect the user's last message back verbatim, but never reference earlier turns or context not currently in the profile JSON.
+- No em dashes in any response. Use commas, semicolons, colons, or a plain hyphen.
+- Plain prose only. No markdown, no bullet lists, no bold, no headings. Just sentences.
+- When stating eligibility, always use "you appear eligible" or "you may qualify". Never use definitive language.
+- For factual claims about payment amounts, conditions, or handoff steps: cite the source inline like [SCHEME_ID]. If a fact is not in the Official sources below, say you do not have that information rather than guessing.
+
+Current profile (do not ask for anything already present here):
 ${JSON.stringify(mergedProfile, null, 2)}
 
-Eligibility results so far:
+Eligibility so far:
 - Appears eligible: ${eligibleNames}
 - Needs more information: ${needsInfoNames}
 - Not eligible: ${ineligibleNames}
 
-Official sources (cite these for any factual claims):
-${sources || 'No sources loaded yet. Ask the next question to gather more profile information.'}
-${nextQ}`
+Official sources (cite for any factual claims):
+${sources || 'No sources loaded yet.'}
+
+---
+
+${modeBlock}`
 }
 
 // ── prepareTurn ───────────────────────────────────────────────────────────────
@@ -434,7 +471,23 @@ export async function prepareTurn(
   // 2. Extract structured variables from user prose
   const extractedDelta = await extract(userMessage, profileWithChip, llm)
   const fullDelta: Partial<ProfileVariables> = { ...chipDelta, ...extractedDelta }
-  const merged = normaliseEnumValues(mergeProfile(profileWithChip, extractedDelta))
+
+  // 2a. Detect contradictions: extraction returned a value for a key that
+  //     already exists in the profile with a different value. Chip answers
+  //     are always authoritative and never treated as contradictions.
+  const contradictions: ContradictionDetail[] = []
+  const safeExtractedDelta: Partial<ProfileVariables> = { ...extractedDelta }
+  for (const [k, newVal] of Object.entries(extractedDelta)) {
+    const key = k as keyof ProfileVariables
+    if (key in chipDelta) continue  // chip overrides — not a contradiction
+    const existing = profileWithChip[key]
+    if (existing !== undefined && existing !== newVal) {
+      contradictions.push({ variable: k, previous: existing, extracted: newVal })
+      delete safeExtractedDelta[key]  // withhold: keep old value in profile
+    }
+  }
+
+  const merged = normaliseEnumValues(mergeProfile(profileWithChip, safeExtractedDelta))
 
   // 2b. Update skip-tracking state based on whether the previously asked
   //     variable was answered in this turn.
@@ -483,15 +536,27 @@ export async function prepareTurn(
 
   const eligibility = toEligibilityResult(rulesResult)
 
-  // 4. Pick next question (skip-cooldown vars excluded via newSkippedAt)
-  const nextQuestion = pickNextQuestion(
-    rulesResult.missing_variables,
-    merged,
-    history,
-    rulesResult.traces,
-    eligibility,
-    newSkippedAt,
-  )
+  // Determine conversation mode. Priority: handoff > contradiction > collecting_info.
+  // Handoff wins even when contradictions exist: the user already has a result
+  // and resolving the contradiction would not change that outcome.
+  const mode: ConversationMode =
+    eligibility.eligible.length > 0 ? 'handoff' :
+    contradictions.length > 0       ? 'contradiction' :
+                                       'collecting_info'
+
+  // 4. Pick next question — only in collecting_info mode.
+  //    handoff and contradiction modes handle the turn via their prompt blocks;
+  //    no slot-filling question is needed.
+  const nextQuestion = mode === 'collecting_info'
+    ? pickNextQuestion(
+        rulesResult.missing_variables,
+        merged,
+        history,
+        rulesResult.traces,
+        eligibility,
+        newSkippedAt,
+      )
+    : null
 
   // 5. Fetch corpus chunks scoped to eligible + needs-info schemes
   const relevantSchemeIds = [
@@ -506,7 +571,7 @@ export async function prepareTurn(
   }
 
   // 6. Build system prompt
-  const systemPrompt = buildSystemPrompt(merged, eligibility, chunks, nextQuestion)
+  const systemPrompt = buildSystemPrompt(merged, eligibility, chunks, nextQuestion, mode, contradictions)
 
   return {
     profileDelta: fullDelta,
@@ -514,8 +579,10 @@ export async function prepareTurn(
     eligibility,
     nextQuestion,
     systemPrompt,
-    chips: nextQuestion?.chips ?? [],
-    guidance: nextQuestion?.guidance ?? null,
+    chips: mode === 'collecting_info' ? (nextQuestion?.chips ?? []) : [],
+    guidance: mode === 'collecting_info' ? (nextQuestion?.guidance ?? null) : null,
+    mode,
+    contradictions,
     profileWithChip,
     extractedDelta,
     rulesResult,
