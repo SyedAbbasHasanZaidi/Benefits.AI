@@ -42,51 +42,51 @@ Schema (extract only these keys):
 
 ---
 
-Example 1 — explicit info mixed with irrelevant noise:
+Example 1:explicit info mixed with irrelevant noise:
 User: "I'm 68, retired, renting in Blacktown for $400 a fortnight. I love gardening."
 Output: {"age":68,"employment_status":"retired","tenure_type":"renting","council_lga":"Blacktown","state":"NSW","rent_paid_fortnightly":400}
 
-Example 2 — implicit signal ("on the pension" implies retired but NOT a specific age):
+Example 2:implicit signal ("on the pension" implies retired but NOT a specific age):
 User: "I've been on the age pension for two years, I live alone in Victoria."
 Output: {"employment_status":"retired","has_partner":false,"state":"VIC"}
 
-Example 3 — chip/short answer with no prose context:
+Example 3:chip/short answer with no prose context:
 User: "Yes"
 Output: {}
 
-Example 4 — nothing extractable:
+Example 4:nothing extractable:
 User: "What kind of help can I get?"
 Output: {}
 
-Example 5 — sparse statement, no inferred residency/age/income/location:
+Example 5:sparse statement, no inferred residency/age/income/location:
 User: "I recently lost my job."
 Output: {"employment_status":"unemployed"}
 
-Example 6 — vague frequency, omit numeric (do NOT set hours_worked_per_week or employment_status):
+Example 6:vague frequency, omit numeric (do NOT set hours_worked_per_week or employment_status):
 User: "I've been picking up shifts here and there."
 Output: {}
 
-Example 7 — super/dividends are NOT annual_income (annual_income means employment income; investment income is out-of-model):
+Example 7:super/dividends are NOT annual_income (annual_income means employment income; investment income is out-of-model):
 User: "I'm 70, retired. Super pays me $30k a year and I have $200k in shares paying dividends."
 Output: {"age":70,"employment_status":"retired"}
 
-Example 8 — refusal / "don't know" never re-fills from prior turns:
+Example 8:refusal / "don't know" never re-fills from prior turns:
 User: "I'd rather not say."
 Output: {}
 
-Example 9 — city-to-state mapping is deterministic and welcome (Sydney→NSW, Melbourne/melbs→VIC, Brisbane/brissy→QLD, Perth→WA, Adelaide→SA, Hobart→TAS, Canberra→ACT, Darwin→NT):
+Example 9:city-to-state mapping is deterministic and welcome (Sydney→NSW, Melbourne/melbs→VIC, Brisbane/brissy→QLD, Perth→WA, Adelaide→SA, Hobart→TAS, Canberra→ACT, Darwin→NT):
 User: "im 28 living in melbs, no job rn"
 Output: {"age":28,"state":"VIC","employment_status":"unemployed"}
 
-Example 10 — travel ≠ residency claim. Only set is_australian_resident when user says citizen / permanent resident / "I'm Australian":
+Example 10:travel ≠ residency claim. Only set is_australian_resident when user says citizen / permanent resident / "I'm Australian":
 User: "just got back from overseas"
 Output: {}
 
-Example 11 — "just had my birthday" / "just turned" implies age + 1:
+Example 11:"just had my birthday" / "just turned" implies age + 1:
 User: "I was 17 but just had my birthday"
 Output: {"age":18}
 
-Example 12 — user-typed RANGES are ambiguous, never collapse them to a midpoint. Only a literally stated single value counts. Ranges must be OMITTED so the bot can ask for clarification. This rule applies to every numeric field (age, annual_income, rent_paid_fortnightly, number_of_children, youngest_child_age, hours_worked_per_week):
+Example 12:user-typed RANGES are ambiguous, never collapse them to a midpoint. Only a literally stated single value counts. Ranges must be OMITTED so the bot can ask for clarification. This rule applies to every numeric field (age, annual_income, rent_paid_fortnightly, number_of_children, youngest_child_age, hours_worked_per_week):
 User: "18-23"
 Output: {}
 User: "somewhere between 25 and 30"
@@ -104,7 +104,7 @@ export async function extract(
   llm: LlmProvider,
 ): Promise<Partial<ProfileVariables>> {
   const profileJson = JSON.stringify(currentProfile, null, 2)
-  const userContent = `Current profile (already known — do NOT re-extract these):\n${profileJson}\n\nNow extract from:\nUser: ${userMessage}\nOutput:`
+  const userContent = `Current profile (already known:do NOT re-extract these):\n${profileJson}\n\nNow extract from:\nUser: ${userMessage}\nOutput:`
 
   const response = await llm.generate({
     system: EXTRACTION_SYSTEM,
