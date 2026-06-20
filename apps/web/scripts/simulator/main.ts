@@ -32,7 +32,6 @@ const SIM_TEMPERATURE = 0.9
 // 20 curated personas — one per scheme + two DSP/JobSeeker variants + 4 negatives.
 // Used by --preset curated to keep cost at ~$10 for a L3+L4+L5 run.
 const CURATED_PERSONA_IDS = [
-  // Federal — one primary per scheme
   'JOBSEEKER-eligible-unemployed-low-income',
   'JOBSEEKER-eligible-recently-redundant',
   'AGE_PENSION-eligible-retiree',
@@ -45,23 +44,50 @@ const CURATED_PERSONA_IDS = [
   'PARENTING_PAYMENT-eligible-single-young-child',
   'LIHCC-eligible-family-low-income',
   'RENT_ASSISTANCE-eligible-private-renter',
-  // NSW state
   'NSW_EAPA-eligible-hardship',
   'NSW_SENIORS_CARD-eligible',
-  // Council
   'COUNCIL_SYDNEY_PENSIONER_RATES-eligible',
   'COUNCIL_BLACKTOWN_PENSIONER_RATES-eligible',
-  // Negative / boundary cases
   'FTB_A-ineligible-high-income',
   'AGE_PENSION-ineligible-too-young',
   'NSW_EAPA-ineligible-not-NSW',
   'COUNCIL_SYDNEY_PENSIONER_RATES-ineligible-renter',
 ]
 
+// 21 personas not covered by the curated preset — federal scheme variants,
+// remaining NSW schemes, and 4 remaining council LGAs.
+const UNTESTED_PERSONA_IDS = [
+  // Federal variants
+  'FTB_A-eligible-couple-three-kids',
+  'FTB_A-eligible-single-dad-recent-divorce',
+  'JOBSEEKER-eligible-part-time-low-hours',
+  'AGE_PENSION-eligible-just-eligible-67',
+  'AGE_PENSION-eligible-elderly-couple',
+  'DSP-eligible-cancer-survivor-50',
+  'YOUTH_ALLOWANCE-eligible-unemployed-19',
+  'YOUTH_ALLOWANCE-eligible-part-time-22',
+  'RENT_ASSISTANCE-eligible-boarding-house',
+  'RENT_ASSISTANCE-eligible-single-mum-renting',
+  'PARENTING_PAYMENT-eligible-partnered-young-child',
+  'CARER_PAYMENT-eligible-spouse-carer',
+  'LIHCC-eligible-single-low-income',
+  // NSW state schemes not yet run
+  'NSW_LOW_INCOME_REBATE-eligible',
+  'NSW_LOW_INCOME_REBATE-eligible-pensioner',
+  'NSW_EAPA-eligible-disconnection-notice',
+  'NSW_SENIORS_CARD-eligible-fully-retired',
+  // Remaining council LGAs
+  'COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES-eligible',
+  'COUNCIL_CENTRAL_COAST_PENSIONER_RATES-eligible',
+  'COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES-eligible',
+  'COUNCIL_SYDNEY_HARDSHIP-eligible',
+]
+
 interface Cli {
   personaId?: string
   level?: DisruptionLevel
-  preset?: 'curated'
+  preset?: 'curated' | 'untested'
+  sample?: number
 }
 
 function parseCli(argv: string[]): Cli {
@@ -71,8 +97,14 @@ function parseCli(argv: string[]): Cli {
     if (arg === '--persona') out.personaId = argv[++i]
     else if (arg === '--preset') {
       const val = argv[++i]
-      if (val !== 'curated') throw new Error(`--preset must be "curated", got "${val}"`)
-      out.preset = 'curated'
+      if (val !== 'curated' && val !== 'untested')
+        throw new Error(`--preset must be "curated" or "untested", got "${val}"`)
+      out.preset = val as 'curated' | 'untested'
+    }
+    else if (arg === '--sample') {
+      const n = parseInt(argv[++i] ?? '', 10)
+      if (isNaN(n) || n < 1) throw new Error(`--sample must be a positive integer, got "${argv[i]}"`)
+      out.sample = n
     }
     else if (arg === '--level') {
       const n = parseInt(argv[++i] ?? '', 10)
@@ -83,6 +115,16 @@ function parseCli(argv: string[]): Cli {
     }
   }
   return out
+}
+
+// Fisher-Yates shuffle — used by --sample N
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -316,10 +358,20 @@ export async function run() {
     personas = CURATED_PERSONA_IDS
       .map((id) => personas.find((p) => p.id === id))
       .filter((p): p is Persona => p !== undefined)
+  } else if (cli.preset === 'untested') {
+    personas = UNTESTED_PERSONA_IDS
+      .map((id) => PERSONAS.find((p) => p.id === id))
+      .filter((p): p is Persona => p !== undefined)
   }
+
+  // --sample N: randomly pick N personas from whatever set was resolved above
+  if (cli.sample !== undefined && cli.sample < personas.length) {
+    personas = shuffle(personas).slice(0, cli.sample)
+  }
+
   const levels: DisruptionLevel[] = cli.level !== undefined
     ? [cli.level]
-    : cli.preset === 'curated'
+    : (cli.preset === 'curated' || cli.preset === 'untested')
       ? [5, 4, 3]
       : [5, 4, 3, 2, 1, 0]
 
