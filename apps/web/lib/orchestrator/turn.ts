@@ -683,13 +683,28 @@ export async function prepareTurn(
     : null
 
   // 5. Fetch corpus chunks scoped to eligible + needs-info schemes
+  const NSW_COUNCIL_SCHEMES = new Set([
+    'COUNCIL_SYDNEY_PENSIONER_RATES_REBATE', 'COUNCIL_SYDNEY_RATES_HARDSHIP',
+    'COUNCIL_BLACKTOWN_PENSIONER_RATES_REBATE',
+    'COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES_REBATE',
+    'COUNCIL_CENTRAL_COAST_PENSIONER_RATES_REBATE',
+    'COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES_REBATE',
+  ])
+
   const relevantSchemeIds = [
     ...eligibility.eligible,
     ...eligibility.needs_info.map((n) => n.schemeId),
   ]
+
+  // When state is confirmed non-NSW, exclude council chunks so the 4 context
+  // slots go to schemes relevant to this user rather than NSW-specific content.
+  const filteredSchemeIds = merged.state && merged.state !== 'NSW'
+    ? relevantSchemeIds.filter((id) => !NSW_COUNCIL_SCHEMES.has(id))
+    : relevantSchemeIds
+
   let chunks: CorpusChunk[] = []
   try {
-    chunks = await queryCorpus(merged, relevantSchemeIds, 4)
+    chunks = await queryCorpus(merged, filteredSchemeIds, 4)
   } catch (err) {
     console.error('prepareTurn: retriever error', err)
   }
