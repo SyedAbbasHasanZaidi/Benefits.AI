@@ -160,6 +160,11 @@ async function botTurn(
 ) {
   const ctx = await prepareTurn(userMessage, profile, history, extractLlm, {})
 
+  // Handoff: use the orchestrator-built message directly, no LLM call.
+  if (ctx.handoffMessage) {
+    return { ctx, botResponse: ctx.handoffMessage }
+  }
+
   const lastBotResponse = history
     .filter((m) => m.role === 'assistant')
     .at(-1)?.content ?? null

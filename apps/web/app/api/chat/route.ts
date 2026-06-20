@@ -53,6 +53,37 @@ export async function POST(req: Request) {
     lastAskedVariable ?? null, askedStreak, skippedAt,
   )
 
+  // Handoff: response is pre-built by the orchestrator — no LLM call needed.
+  // Construct the AI SDK v4 data stream format manually so the client's useChat
+  // hook parses it identically to a normal streamText response.
+  if (ctx.handoffMessage) {
+    const encoder = new TextEncoder()
+    const dataPayload = JSON.stringify([{
+      profileDelta: ctx.profileDelta,
+      eligibility: ctx.eligibility,
+      chips: ctx.chips,
+      guidance: ctx.guidance,
+      guidanceVariable: ctx.nextQuestion?.variable ?? null,
+      askedStreak: ctx.askedStreak,
+      skippedAt: ctx.skippedAt,
+    }])
+    const handoffText = ctx.handoffMessage
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`2:${dataPayload}\n`))
+        controller.enqueue(encoder.encode(`0:${JSON.stringify(handoffText)}\n`))
+        controller.enqueue(encoder.encode(`d:{"finishReason":"stop","usage":{"promptTokens":0,"completionTokens":0}}\n`))
+        controller.close()
+      },
+    })
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'x-vercel-ai-data-stream': 'v1',
+      },
+    })
+  }
+
   const data = new StreamData()
   data.append({
     profileDelta: ctx.profileDelta,

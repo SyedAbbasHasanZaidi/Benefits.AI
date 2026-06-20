@@ -54,6 +54,8 @@ export interface TurnContext {
   // Skip-tracking state — must be echoed back by the client on the next turn.
   askedStreak: Record<string, number>
   skippedAt: Record<string, number>
+  // Non-null when mode === 'handoff': pre-built response, no LLM call needed.
+  handoffMessage: string | null
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -537,6 +539,40 @@ export function buildBotContext(
   return messages
 }
 
+// ── buildHandoffMessage ───────────────────────────────────────────────────────
+
+/**
+ * Builds the handoff response directly from orchestrator data.
+ * No LLM call — eligible schemes and next steps are deterministic from
+ * eligibility + corpus chunks, so there is no reason to let the LLM
+ * generate (and potentially deviate from) this turn.
+ */
+export function buildHandoffMessage(
+  eligibility: EligibilityResult,
+  chunks: CorpusChunk[],
+): string {
+  const schemeList = eligibility.eligible.join(' and ')
+  const intro = `Based on everything you've shared, you appear eligible for ${schemeList}.`
+
+  const chunkMap = new Map(chunks.map((c) => [c.scheme_id, c.chunk_text]))
+
+  const steps = eligibility.eligible
+    .map((schemeId) => {
+      const chunk = chunkMap.get(schemeId)
+      if (!chunk) return null
+      const match = chunk.match(/##\s*How to apply\s*\r?\n+([\s\S]*?)(?=\r?\n##|$)/)
+      const step = match ? match[1].trim().replace(/\r?\n+/g, ' ') : null
+      return step ? `For ${schemeId}: ${step}` : null
+    })
+    .filter((s): s is string => s !== null)
+
+  const body = steps.length > 0
+    ? steps.join(' ')
+    : 'Check your eligibility meter on screen for next steps.'
+
+  return `${intro} Your eligibility meter on screen has your full results. ${body}`
+}
+
 // ── prepareTurn ───────────────────────────────────────────────────────────────
 
 // How many new profile fields must be filled after a skip before the
@@ -677,5 +713,6 @@ export async function prepareTurn(
     chunks,
     askedStreak: newAskedStreak,
     skippedAt: newSkippedAt,
+    handoffMessage: mode === 'handoff' ? buildHandoffMessage(eligibility, chunks) : null,
   }
 }
