@@ -176,6 +176,47 @@ function countSchemesByVariable(
   return counts
 }
 
+// Maps known inner-suburb names to their canonical LGA name.
+// Users often say a suburb ("Glebe", "Manly") instead of the LGA ("SYDNEY",
+// "NORTHERN_BEACHES"). OpenFisca checks council_lga against the LGA name, so
+// without this mapping the council schemes silently return ineligible.
+const SUBURB_TO_LGA: Record<string, string> = {
+  // City of Sydney LGA
+  GLEBE: 'SYDNEY', NEWTOWN: 'SYDNEY', 'SURRY HILLS': 'SYDNEY', SURRY_HILLS: 'SYDNEY',
+  PYRMONT: 'SYDNEY', REDFERN: 'SYDNEY', CHIPPENDALE: 'SYDNEY', ULTIMO: 'SYDNEY',
+  DARLINGHURST: 'SYDNEY', 'POTTS POINT': 'SYDNEY', POTTS_POINT: 'SYDNEY',
+  BALMAIN: 'SYDNEY', LEICHHARDT: 'SYDNEY', ANNANDALE: 'SYDNEY', PADDINGTON: 'SYDNEY',
+  HAYMARKET: 'SYDNEY', 'THE ROCKS': 'SYDNEY', THE_ROCKS: 'SYDNEY',
+  // Blacktown LGA
+  'SEVEN HILLS': 'BLACKTOWN', SEVEN_HILLS: 'BLACKTOWN',
+  'MOUNT DRUITT': 'BLACKTOWN', MOUNT_DRUITT: 'BLACKTOWN',
+  TOONGABBIE: 'BLACKTOWN', 'QUAKERS HILL': 'BLACKTOWN', QUAKERS_HILL: 'BLACKTOWN',
+  'ROOTY HILL': 'BLACKTOWN', ROOTY_HILL: 'BLACKTOWN',
+  'KINGS LANGLEY': 'BLACKTOWN', KINGS_LANGLEY: 'BLACKTOWN',
+  'KINGS PARK': 'BLACKTOWN', KINGS_PARK: 'BLACKTOWN',
+  // Canterbury-Bankstown LGA
+  BANKSTOWN: 'CANTERBURY_BANKSTOWN', CANTERBURY: 'CANTERBURY_BANKSTOWN',
+  CAMPSIE: 'CANTERBURY_BANKSTOWN', LAKEMBA: 'CANTERBURY_BANKSTOWN',
+  BELMORE: 'CANTERBURY_BANKSTOWN', GREENACRE: 'CANTERBURY_BANKSTOWN',
+  PUNCHBOWL: 'CANTERBURY_BANKSTOWN', PADSTOW: 'CANTERBURY_BANKSTOWN',
+  REVESBY: 'CANTERBURY_BANKSTOWN', MILPERRA: 'CANTERBURY_BANKSTOWN',
+  'BASS HILL': 'CANTERBURY_BANKSTOWN', BASS_HILL: 'CANTERBURY_BANKSTOWN',
+  'CHESTER HILL': 'CANTERBURY_BANKSTOWN', CHESTER_HILL: 'CANTERBURY_BANKSTOWN',
+  // Central Coast LGA
+  GOSFORD: 'CENTRAL_COAST', WYONG: 'CENTRAL_COAST',
+  'WOY WOY': 'CENTRAL_COAST', WOY_WOY: 'CENTRAL_COAST',
+  TERRIGAL: 'CENTRAL_COAST', TUGGERAH: 'CENTRAL_COAST', ERINA: 'CENTRAL_COAST',
+  'THE ENTRANCE': 'CENTRAL_COAST', THE_ENTRANCE: 'CENTRAL_COAST',
+  'UMINA BEACH': 'CENTRAL_COAST', UMINA_BEACH: 'CENTRAL_COAST',
+  // Northern Beaches LGA
+  MANLY: 'NORTHERN_BEACHES', 'DEE WHY': 'NORTHERN_BEACHES', DEE_WHY: 'NORTHERN_BEACHES',
+  NARRABEEN: 'NORTHERN_BEACHES', 'MONA VALE': 'NORTHERN_BEACHES', MONA_VALE: 'NORTHERN_BEACHES',
+  BALGOWLAH: 'NORTHERN_BEACHES', FRESHWATER: 'NORTHERN_BEACHES',
+  'CURL CURL': 'NORTHERN_BEACHES', CURL_CURL: 'NORTHERN_BEACHES',
+  COLLAROY: 'NORTHERN_BEACHES', CROMER: 'NORTHERN_BEACHES', WARRIEWOOD: 'NORTHERN_BEACHES',
+  PITTWATER: 'NORTHERN_BEACHES',
+}
+
 // Normalise enum-shaped fields so values match the OpenFisca rules engine's
 // expected casing. Sonnet extraction returns natural-language values
 // ("Blacktown", "nsw"); the rules engine matches enums case-sensitively
@@ -187,11 +228,11 @@ function normaliseEnumValues(p: ProfileVariables): ProfileVariables {
     out.state = out.state.toUpperCase()
   }
   if (typeof out.council_lga === 'string') {
-    // 'Canterbury-Bankstown' / 'Canterbury Bankstown' → 'CANTERBURY_BANKSTOWN'
-    out.council_lga = out.council_lga
-      .trim()
-      .toUpperCase()
-      .replace(/[\s-]+/g, '_')
+    const upper = out.council_lga.trim().toUpperCase().replace(/[\s-]+/g, '_')
+    // Check suburb lookup with underscore form, then with space form, then fall back to upper
+    out.council_lga = SUBURB_TO_LGA[upper]
+      ?? SUBURB_TO_LGA[out.council_lga.trim().toUpperCase()]
+      ?? upper
   }
   if (typeof out.tenure_type === 'string') {
     out.tenure_type = out.tenure_type.toLowerCase() as ProfileVariables['tenure_type']
