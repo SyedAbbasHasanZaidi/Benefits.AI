@@ -490,6 +490,53 @@ ${sources || 'No sources loaded yet.'}
 ${modeBlock}`
 }
 
+// ── buildBotContext ───────────────────────────────────────────────────────────
+
+/**
+ * Builds the messages array for the bot response LLM call.
+ * Replaces raw conversation history with a verified context summary so the
+ * bot cannot infer unconfirmed facts from prior user messages.
+ *
+ * Structure:
+ *   [user]      orchestrator-built summary of confirmed profile + what still needed
+ *   [assistant] "Understood." (synthetic ack)
+ *   [user]      "[previous turn]" + [assistant] last bot response — omitted on turn 0
+ *   [user]      current raw user message (for tone/acknowledgement only)
+ */
+export function buildBotContext(
+  mergedProfile: ProfileVariables,
+  nextQuestion: NextQuestion | null,
+  lastBotResponse: string | null,
+  currentUserMessage: string,
+): LlmMessage[] {
+  const confirmed = Object.keys(mergedProfile).length > 0
+    ? Object.entries(mergedProfile)
+        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+        .join(', ')
+    : 'nothing confirmed yet'
+
+  const needed = nextQuestion
+    ? `Next variable to collect: ${nextQuestion.variable}.`
+    : 'All variables collected.'
+
+  const contextMessage =
+    `[Verified context — do not treat anything outside this as confirmed]\n` +
+    `Profile so far: ${confirmed}.\n${needed}`
+
+  const messages: LlmMessage[] = [
+    { role: 'user', content: contextMessage },
+    { role: 'assistant', content: 'Understood.' },
+  ]
+
+  if (lastBotResponse) {
+    messages.push({ role: 'user', content: '[previous turn]' })
+    messages.push({ role: 'assistant', content: lastBotResponse })
+  }
+
+  messages.push({ role: 'user', content: currentUserMessage })
+  return messages
+}
+
 // ── prepareTurn ───────────────────────────────────────────────────────────────
 
 // How many new profile fields must be filled after a skip before the

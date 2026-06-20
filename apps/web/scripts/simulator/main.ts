@@ -10,7 +10,7 @@ import * as path from 'path'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { generateText } from 'ai'
 import { AnthropicProvider } from '@/lib/llm/AnthropicProvider'
-import { prepareTurn } from '@/lib/orchestrator/turn'
+import { buildBotContext, prepareTurn } from '@/lib/orchestrator/turn'
 import { mergeProfile, type ProfileVariables } from '@/lib/orchestrator/profile'
 import type { LlmMessage } from '@/lib/llm/LlmProvider'
 import {
@@ -29,9 +29,39 @@ const SIM_TEMPERATURE = 0.9
 // CLI parsing
 // ─────────────────────────────────────────────────────────────────────────
 
+// 20 curated personas — one per scheme + two DSP/JobSeeker variants + 4 negatives.
+// Used by --preset curated to keep cost at ~$10 for a L3+L4+L5 run.
+const CURATED_PERSONA_IDS = [
+  // Federal — one primary per scheme
+  'JOBSEEKER-eligible-unemployed-low-income',
+  'JOBSEEKER-eligible-recently-redundant',
+  'AGE_PENSION-eligible-retiree',
+  'DSP-eligible-disability',
+  'DSP-eligible-mental-health-25',
+  'YOUTH_ALLOWANCE-eligible-student',
+  'FTB_A-eligible-family-low-income',
+  'FTB_B-eligible-single-parent',
+  'CARER_PAYMENT-eligible-carer-low-income',
+  'PARENTING_PAYMENT-eligible-single-young-child',
+  'LIHCC-eligible-family-low-income',
+  'RENT_ASSISTANCE-eligible-private-renter',
+  // NSW state
+  'NSW_EAPA-eligible-hardship',
+  'NSW_SENIORS_CARD-eligible',
+  // Council
+  'COUNCIL_SYDNEY_PENSIONER_RATES-eligible',
+  'COUNCIL_BLACKTOWN_PENSIONER_RATES-eligible',
+  // Negative / boundary cases
+  'FTB_A-ineligible-high-income',
+  'AGE_PENSION-ineligible-too-young',
+  'NSW_EAPA-ineligible-not-NSW',
+  'COUNCIL_SYDNEY_PENSIONER_RATES-ineligible-renter',
+]
+
 interface Cli {
   personaId?: string
   level?: DisruptionLevel
+  preset?: 'curated'
 }
 
 function parseCli(argv: string[]): Cli {
@@ -39,6 +69,11 @@ function parseCli(argv: string[]): Cli {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--persona') out.personaId = argv[++i]
+    else if (arg === '--preset') {
+      const val = argv[++i]
+      if (val !== 'curated') throw new Error(`--preset must be "curated", got "${val}"`)
+      out.preset = 'curated'
+    }
     else if (arg === '--level') {
       const n = parseInt(argv[++i] ?? '', 10)
       if (![0, 1, 2, 3, 4, 5].includes(n)) {
@@ -124,12 +159,15 @@ async function botTurn(
   extractLlm: AnthropicProvider,
 ) {
   const ctx = await prepareTurn(userMessage, profile, history, extractLlm, {})
+
+  const lastBotResponse = history
+    .filter((m) => m.role === 'assistant')
+    .at(-1)?.content ?? null
+
   const { text } = await generateText({
     model: botAnthropic(MODEL),
     system: ctx.systemPrompt,
-    messages: history
-      .concat({ role: 'user', content: userMessage })
-      .map((m) => ({ role: m.role, content: m.content })),
+    messages: buildBotContext(ctx.mergedProfile, ctx.nextQuestion, lastBotResponse, userMessage),
     maxTokens: 384,
   })
   return { ctx, botResponse: text.trim() }
@@ -157,6 +195,7 @@ async function runConversation(
     event: 'conversation_start',
     persona_id: persona.id,
     disruption_level: level,
+    disruption_name: DISRUPTION_LEVELS[level].name,
     ground_truth: persona.groundTruth,
     timestamp: new Date().toISOString(),
   })
@@ -192,11 +231,18 @@ async function runConversation(
         profile_with_chip: ctx.profileWithChip,
         extracted_delta: ctx.extractedDelta,
         full_delta: ctx.profileDelta,
+        contradictions: ctx.contradictions,
         merged_profile: ctx.mergedProfile,
+        profile_size: Object.keys(ctx.mergedProfile).length,
+        asked_streak: ctx.askedStreak,
+        skipped_at: ctx.skippedAt,
         rules_result: ctx.rulesResult,
         eligibility: ctx.eligibility,
+        missing_variables: ctx.rulesResult.missing_variables,
+        mode: ctx.mode,
         next_question: ctx.nextQuestion,
         chunks_used: ctx.chunks,
+        chunk_count: ctx.chunks.length,
         system_prompt: ctx.systemPrompt,
         bot_response: botResponse,
         latency_ms: latency,
@@ -232,6 +278,8 @@ async function runConversation(
     ground_truth_match: match.match,
     missed_schemes: match.missed,
     unexpected_schemes: match.unexpected,
+    total_turns: history.length / 2,
+    total_latency_ms: Date.now() - t0,
     ...(errorMessage ? { error_message: errorMessage } : {}),
   })
 
@@ -251,15 +299,24 @@ async function runConversation(
 export async function run() {
   const cli = parseCli(process.argv.slice(2))
 
-  const personas = cli.personaId
-    ? PERSONAS.filter((p) => p.id === cli.personaId)
-    : PERSONAS
+  let personas = cli.preset === 'curated'
+    ? PERSONAS.filter((p) => CURATED_PERSONA_IDS.includes(p.id))
+    : cli.personaId
+      ? PERSONAS.filter((p) => p.id === cli.personaId)
+      : PERSONAS
   if (cli.personaId && personas.length === 0) {
     throw new Error(`Unknown persona id: ${cli.personaId}`)
   }
+  if (cli.preset === 'curated') {
+    personas = CURATED_PERSONA_IDS
+      .map((id) => personas.find((p) => p.id === id))
+      .filter((p): p is Persona => p !== undefined)
+  }
   const levels: DisruptionLevel[] = cli.level !== undefined
     ? [cli.level]
-    : [0, 1, 2, 3, 4, 5]
+    : cli.preset === 'curated'
+      ? [5, 4, 3]
+      : [5, 4, 3, 2, 1, 0]
 
   const jobs: Array<{ persona: Persona; level: DisruptionLevel }> = []
   for (const persona of personas) {

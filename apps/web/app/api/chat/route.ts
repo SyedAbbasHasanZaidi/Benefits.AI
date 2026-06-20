@@ -2,7 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { StreamData, streamText } from 'ai'
 import { NextResponse } from 'next/server'
 import { AnthropicProvider } from '@/lib/llm/AnthropicProvider'
-import { mapChipToVariable, prepareTurn } from '@/lib/orchestrator/turn'
+import { buildBotContext, mapChipToVariable, prepareTurn } from '@/lib/orchestrator/turn'
 import type { ProfileVariables } from '@/lib/orchestrator/profile'
 
 const anthropic = createAnthropic({
@@ -64,14 +64,14 @@ export async function POST(req: Request) {
     skippedAt: ctx.skippedAt,
   } as unknown as import('ai').JSONValue)
 
-  const coreMessages = messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+  const lastBotResponse = messages
+    .filter((m) => m.role === 'assistant')
+    .at(-1)?.content ?? null
 
   const result = streamText({
     model: anthropic(MODEL_ID),
     system: ctx.systemPrompt,
-    messages: coreMessages,
+    messages: buildBotContext(ctx.mergedProfile, ctx.nextQuestion, lastBotResponse, userMessage),
     maxTokens: 512,
     onFinish: () => {
       data.close()
