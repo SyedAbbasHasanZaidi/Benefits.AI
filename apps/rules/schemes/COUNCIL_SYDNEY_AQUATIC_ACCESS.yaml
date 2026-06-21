@@ -9,7 +9,6 @@ required_inputs:
   - council_lga
   - age
   - annual_income
-  - is_australian_resident
 plain_description: >
   Discounted entry to City of Sydney aquatic and fitness centres — $2 per swim
   and $5.50 per gym session — for eligible concession card holders including
