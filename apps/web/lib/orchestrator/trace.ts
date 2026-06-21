@@ -1,8 +1,9 @@
 /**
  * Structured trace events for the conversation simulator.
  *
- * One JSONL file per conversation; one event per line. Schema is shared with
- * the (future) reviewer agent and a possible dev-mode /api/chat instrumentation.
+ * One JSONL file per conversation; one event per line. Every internal
+ * orchestrator state is captured so conversations can be fully replayed
+ * and reviewed without re-running the LLM.
  */
 
 import * as fs from 'fs'
@@ -10,6 +11,8 @@ import * as path from 'path'
 import type { CorpusChunk } from '@/lib/retriever/query'
 import type { ProfileVariables } from './profile'
 import type {
+  ConversationMode,
+  ContradictionDetail,
   EligibilityResult,
   NextQuestion,
   RulesResult,
@@ -27,22 +30,46 @@ export type TraceEvent =
       event: 'conversation_start'
       persona_id: string
       disruption_level: DisruptionLevel
+      disruption_name: string
       ground_truth: GroundTruth
       timestamp: string
     }
   | {
       event: 'turn'
       turn_index: number
+
+      // ── Simulator side ───────────────────────────────────────────────────
       simulated_user_message: string
-      profile_with_chip: ProfileVariables
-      extracted_delta: Partial<ProfileVariables>
-      full_delta: Partial<ProfileVariables>
-      merged_profile: ProfileVariables
-      rules_result: RulesResult
-      eligibility: EligibilityResult
-      next_question: NextQuestion | null
-      chunks_used: CorpusChunk[]
-      system_prompt: string
+
+      // ── Extraction layer ─────────────────────────────────────────────────
+      profile_with_chip: ProfileVariables          // after chip merge, before extraction
+      extracted_delta: Partial<ProfileVariables>   // LLM extraction output alone
+      full_delta: Partial<ProfileVariables>        // chip delta + extraction combined
+
+      // ── Contradiction detection ──────────────────────────────────────────
+      contradictions: ContradictionDetail[]        // conflicts withheld from profile
+      merged_profile: ProfileVariables             // final profile after safe merge
+      profile_size: number                         // # of filled fields
+
+      // ── Skip-tracking ────────────────────────────────────────────────────
+      asked_streak: Record<string, number>         // consecutive unanswered asks per var
+      skipped_at: Record<string, number>           // profile_size at skip time per var
+
+      // ── Rules engine ─────────────────────────────────────────────────────
+      rules_result: RulesResult                    // raw /calculate response
+      eligibility: EligibilityResult               // parsed eligible/needs_info/ineligible
+      missing_variables: string[]                  // flat list of all missing vars
+
+      // ── Orchestrator decisions ───────────────────────────────────────────
+      mode: ConversationMode                       // collecting_info | handoff | contradiction
+      next_question: NextQuestion | null           // null in handoff + contradiction modes
+
+      // ── Retrieval ────────────────────────────────────────────────────────
+      chunks_used: CorpusChunk[]                   // corpus chunks fed to system prompt
+      chunk_count: number                          // convenience field for quick scanning
+
+      // ── Bot turn ─────────────────────────────────────────────────────────
+      system_prompt: string                        // full system prompt sent to bot LLM
       bot_response: string
       latency_ms: number
     }
@@ -54,6 +81,8 @@ export type TraceEvent =
       ground_truth_match: boolean
       missed_schemes: string[]
       unexpected_schemes: string[]
+      total_turns: number
+      total_latency_ms: number
       error_message?: string
     }
 
@@ -62,9 +91,6 @@ export class TraceWriter {
 
   constructor(filePath: string) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    // 'w' truncates — re-running the same (persona × level) overwrites
-    // the prior trace rather than stacking multiple conversations into one
-    // file (which would confuse the reviewer's loadConversation logic).
     this.stream = fs.createWriteStream(filePath, { flags: 'w' })
   }
 
@@ -81,28 +107,21 @@ export class TraceWriter {
 
 /**
  * Compute set-equality match between final eligible set and ground truth.
- * Match requires every ground-truth-eligible scheme appears in eligible AND
- * no ground-truth-ineligible scheme appears in eligible.
  */
 export function computeMatch(
   finalEligible: string[],
   groundTruth: GroundTruth,
 ): { match: boolean; missed: string[]; unexpected: string[] } {
   const finalSet = new Set(finalEligible)
-  const truthSet = new Set(groundTruth.eligible)
 
   const missed = groundTruth.eligible.filter((s) => !finalSet.has(s))
   const forbiddenHit = (groundTruth.ineligible ?? []).filter((s) =>
     finalSet.has(s),
   )
-  // Unexpected = anything in final that's neither expected-eligible nor a
-  // bonus/related scheme. For now we keep it permissive: only flag schemes
-  // that are explicitly in ground_truth.ineligible.
-  const unexpected = forbiddenHit
 
   return {
-    match: missed.length === 0 && unexpected.length === 0,
+    match: missed.length === 0 && forbiddenHit.length === 0,
     missed,
-    unexpected,
+    unexpected: forbiddenHit,
   }
 }

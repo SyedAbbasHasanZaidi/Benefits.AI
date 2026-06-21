@@ -1,6 +1,22 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { ProfileVariables } from '@/lib/orchestrator/profile'
 import { embedText } from './embed'
+
+// Lazy-import the Next.js server client so this module can be loaded in CLI
+// scripts (simulator, ingest) without triggering the `cookies()` call, which
+// panics outside a Next.js request scope.
+async function getSupabaseClient() {
+  try {
+    const { createClient } = await import('@/lib/supabase/server')
+    return await createClient()
+  } catch {
+    // Fallback for CLI / script contexts where Next.js cookies() isn't available.
+    return createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+  }
+}
 
 export interface CorpusChunk {
   id: string
@@ -40,7 +56,7 @@ export async function queryCorpus(
   const queryText = synthesiseQuery(profile, schemeIds)
   const embedding = await embedText(queryText)
 
-  const supabase = await createClient()
+  const supabase = await getSupabaseClient()
   const { data, error } = await supabase.rpc('match_corpus_chunks', {
     query_embedding: embedding,
     match_count: topK,

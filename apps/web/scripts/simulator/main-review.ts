@@ -1,8 +1,14 @@
 /**
- * Reviewer main loop. Walks logs/simulator/<date>/, runs deterministic +
- * (optional) LLM-judge checks, writes REPORT.md and REPORT.jsonl.
+ * Reviewer main loop. Walks logs/simulator/<date>/, runs deterministic
+ * structural checks, writes REPORT.md and REPORT.jsonl.
  *
- * See review.ts for env loading (must precede this module's imports).
+ * No LLM calls. Qualitative review is done by the Claude session agent
+ * defined in scripts/simulator/review-agent.md — invoke it after this
+ * command completes.
+ *
+ * Usage:
+ *   pnpm --filter web run sim:review [-- --date YYYY-MM-DD]
+ *                                     [--persona <id>] [--level <0-5>]
  */
 
 import * as fs from 'fs'
@@ -19,23 +25,19 @@ import type { DisruptionLevel } from '@/lib/orchestrator/trace'
 
 interface Cli {
   date?: string
-  llmJudge: boolean
   personaId?: string
   level?: DisruptionLevel
 }
 
 function parseCli(argv: string[]): Cli {
-  const out: Cli = { llmJudge: true }
+  const out: Cli = {}
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--date') out.date = argv[++i]
-    else if (arg === '--no-llm-judge') out.llmJudge = false
     else if (arg === '--persona') out.personaId = argv[++i]
     else if (arg === '--level') {
       const n = parseInt(argv[++i] ?? '', 10)
-      if (![0, 1, 2, 3, 4, 5].includes(n)) {
-        throw new Error(`--level must be 0-5`)
-      }
+      if (![0, 1, 2, 3, 4, 5].includes(n)) throw new Error(`--level must be 0-5`)
       out.level = n as DisruptionLevel
     }
   }
@@ -52,16 +54,7 @@ export async function run() {
     process.exit(0)
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (cli.llmJudge && !apiKey) {
-    console.error('ANTHROPIC_API_KEY missing; falling back to deterministic only')
-    cli.llmJudge = false
-  }
-
-  console.log(
-    `Reviewing ${logFiles.length} log(s) for ${date} ` +
-      `(llm-judge=${cli.llmJudge ? 'on' : 'off'})\n`,
-  )
+  console.log(`Reviewing ${logFiles.length} log(s) for ${date}\n`)
 
   const reports: ConversationReport[] = []
   for (let i = 0; i < logFiles.length; i++) {
@@ -71,13 +64,9 @@ export async function run() {
       continue
     }
     if (cli.personaId && conv.start.persona_id !== cli.personaId) continue
-    if (cli.level !== undefined && conv.start.disruption_level !== cli.level)
-      continue
+    if (cli.level !== undefined && conv.start.disruption_level !== cli.level) continue
 
-    const r = await reviewConversation(conv, {
-      llmJudge: cli.llmJudge,
-      apiKey,
-    })
+    const r = reviewConversation(conv)
     reports.push(r)
     console.log(`[${i + 1}/${logFiles.length}] ${r.summary_line}`)
   }
@@ -95,17 +84,16 @@ export async function run() {
   fs.writeFileSync(mdPath, renderMarkdown(report))
 
   const jsonlPath = path.join(reportDir, 'REPORT.jsonl')
-  const lines = reports.map((r) => JSON.stringify(r))
-  fs.writeFileSync(jsonlPath, lines.join('\n') + '\n')
+  fs.writeFileSync(jsonlPath, reports.map((r) => JSON.stringify(r)).join('\n') + '\n')
 
   console.log('')
-  console.log(`Report: ${path.relative(process.cwd(), mdPath)}`)
-  console.log(`Data:   ${path.relative(process.cwd(), jsonlPath)}`)
-
-  // Print compact summary to stdout
+  console.log(`Report:  ${path.relative(process.cwd(), mdPath)}`)
+  console.log(`Data:    ${path.relative(process.cwd(), jsonlPath)}`)
   console.log('')
   console.log('Severity counts:')
   for (const [sev, count] of Object.entries(report.per_severity_count)) {
     if (count > 0) console.log(`  ${sev.padEnd(8)}: ${count}`)
   }
+  console.log('')
+  console.log('Next step: ask Claude to run the review agent in scripts/simulator/review-agent.md')
 }
