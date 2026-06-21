@@ -9,7 +9,6 @@ required_inputs:
   - state
   - age
   - annual_income
-  - number_of_children
 plain_description: >
   An annual rebate on natural gas bills for eligible NSW concession card holders,
   including Pensioner Concession Card and Low Income Health Care Card holders.

@@ -581,7 +581,7 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP-eligible',
-    groundTruth: { eligible: ['COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP'] },
+    groundTruth: { eligible: ['COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP', 'NSW_EAPA'] },
     profile: {
       is_australian_resident: true,
       state: 'NSW',
