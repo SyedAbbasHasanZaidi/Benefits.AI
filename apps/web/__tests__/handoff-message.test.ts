@@ -40,4 +40,19 @@ describe('buildHandoffMessage', () => {
     expect(msg).toContain('JOBSEEKER')
     expect(msg).toContain('eligibility meter')
   })
+
+  test('extracts apply step from alternate heading "How to claim"', () => {
+    const chunk: CorpusChunk = {
+      id: '2',
+      scheme_id: 'LIHCC',
+      chunk_text: '# LIHCC\n\n## Who can get it\n\n...\n\n## How to claim\n\nApply via myGov or call 132 490.',
+      metadata: {},
+      similarity: 0.85,
+    }
+    const msg = buildHandoffMessage(
+      { eligible: ['LIHCC'], needs_info: [], ineligible: [] },
+      [chunk],
+    )
+    expect(msg).toContain('132 490')
+  })
 })

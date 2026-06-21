@@ -276,6 +276,19 @@ export function pickNextQuestion(
     }
   }
 
+  // Tier 1.5 — one-variable-away: if any needs_info scheme is missing exactly
+  // one variable, ask for it immediately. Prevents high-value single-variable
+  // schemes (e.g. RENT_ASSISTANCE gating on rent_paid_fortnightly) from being
+  // perpetually deprioritised behind variables that unlock more schemes.
+  for (const ni of eligibility.needs_info) {
+    if (ni.missingVars.length === 1) {
+      const v = ni.missingVars[0] as keyof ProfileVariables
+      if (!(v in mergedProfile) && stillNeeded.has(v) && !onCooldown(v)) {
+        return buildQuestion(v)
+      }
+    }
+  }
+
   // Tier 2 — scheme intent: user mentioned a specific scheme
   const intentSchemeId = detectSchemeIntent(history)
   if (intentSchemeId) {
@@ -561,7 +574,7 @@ export function buildHandoffMessage(
     .map((schemeId) => {
       const chunk = chunkMap.get(schemeId)
       if (!chunk) return null
-      const match = chunk.match(/##\s*How to apply\s*\r?\n+([\s\S]*?)(?=\r?\n##|$)/)
+      const match = chunk.match(/##\s*(?:How to apply|How to claim|Applying|Next steps?|What to do)\s*\r?\n+([\s\S]*?)(?=\r?\n##|$)/i)
       const step = match ? match[1].trim().replace(/\r?\n+/g, ' ') : null
       return step ? `For ${schemeId}: ${step}` : null
     })

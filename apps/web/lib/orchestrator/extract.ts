@@ -118,7 +118,25 @@ User: "not much honestly"
 Output: {}
 User: "a bit here and there"
 Output: {}
-Note: the boundary is between CLEAR ZERO ("nothing at all", "zero", "nil") and VAGUE LOW AMOUNT ("not much", "a little", "some casual work"). Clear zero → annual_income:0. Vague → omit. When in doubt, omit.`
+Note: the boundary is between CLEAR ZERO ("nothing at all", "zero", "nil") and VAGUE LOW AMOUNT ("not much", "a little", "some casual work"). Clear zero → annual_income:0. Vague → omit. When in doubt, omit.
+
+Example 15 — underemployed: employed but working fewer than ~20 hours/week AND seeking more work. Use 'part_time' not 'employed':
+User: "I work about 10 hours a week at the petrol station, looking for more."
+Output: {"employment_status":"part_time","hours_worked_per_week":10}
+User: "Got a casual gig, maybe 8 hours, nowhere near enough to live on."
+Output: {"employment_status":"part_time","hours_worked_per_week":8}
+User: "Just casual shifts, maybe 12 hours, really need full time work."
+Output: {"employment_status":"part_time","hours_worked_per_week":12}
+Note: only set 'part_time' when user indicates they want or need more work. If content with low hours (e.g. a retiree doing 10hrs for company), set 'employed'.
+
+Example 16 — retired persons work 0 hours per week by definition:
+User: "I'm fully retired, haven't worked since 2019."
+Output: {"employment_status":"retired","hours_worked_per_week":0}
+User: "Retired four years ago, not working at all."
+Output: {"employment_status":"retired","hours_worked_per_week":0}
+User: "Stopped working completely last year."
+Output: {"employment_status":"retired","hours_worked_per_week":0}
+Note: set hours_worked_per_week:0 whenever employment_status is 'retired', unless the user mentions occasional paid work.`
 
 export async function extract(
   userMessage: string,
