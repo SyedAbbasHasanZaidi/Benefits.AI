@@ -41,6 +41,8 @@ The JOBSEEKER formula checks `employment_status in ['unemployed', 'part_time']`.
 
 Two valid approaches:
 
+
+
 **Option A — Fix the extractor:** When the user is employed but works fewer than 20 hours/week AND is actively seeking more work, extract `employment_status: 'part_time'` instead of `'employed'`. This is the correct Centrelink classification — underemployed workers are categorised as part-time for payment purposes.
 
 **Option B — Fix the formula:** Add `(status == 'employed') & (hours_worked_per_week < parameters.jobseeker.max_hours)` branch.
