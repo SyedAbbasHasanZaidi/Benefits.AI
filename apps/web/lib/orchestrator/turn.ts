@@ -88,7 +88,7 @@ const ENUM_CHIPS: Partial<Record<keyof ProfileVariables, string[]>> = {
 // midpoint when the user picks a bracket.
 const BRACKET_CHIPS: Partial<Record<keyof ProfileVariables, string[]>> = {
   age:                   ['Under 18', '18–22', '23–34', '35–49', '50–66', '67+'],
-  annual_income:         ['Under $25k', '$25–45k', '$45–80k', '$80–120k', '$120k+'],
+  annual_income:         ['$0', 'Under $25k', '$25–45k', '$45–80k', '$80–120k', '$120k+'],
   rent_paid_fortnightly: ['Under $300', '$300–500', '$500–800', '$800+'],
   number_of_children:    ['0', '1', '2', '3', '4+'],
   youngest_child_age:    ['Under 5', '5–12', '13–17', '18–21'],

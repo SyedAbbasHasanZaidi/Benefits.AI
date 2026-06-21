@@ -105,12 +105,20 @@ User: "earnt maybe 5k since i got made redundant, before that was on 75k"
 Output: {"annual_income":5000,"employment_status":"unemployed"}
 Note: when two income figures are present (a prior job and a current situation), extract the CURRENT/MOST RECENT one only.
 
-Example 14:statements of no income or near-zero — do NOT set annual_income:0 unless a specific zero figure is given:
+Example 14:zero is a specific figure. Set annual_income:0 when the user clearly states they have no income at all. Do NOT set it when the amount is vague or uncertain:
 User: "no income coming in basically, just that small cash work"
 Output: {"employment_status":"unemployed"}
 User: "I'm not working at all right now"
 Output: {"employment_status":"unemployed"}
-Note: "no income" alone is not sufficient to set annual_income:0 — the user may have other income sources not yet mentioned. Only set annual_income when a specific figure is given.`
+User: "nothing coming in at all"
+Output: {"annual_income":0,"employment_status":"unemployed"}
+User: "zero income, nothing"
+Output: {"annual_income":0,"employment_status":"unemployed"}
+User: "not much honestly"
+Output: {}
+User: "a bit here and there"
+Output: {}
+Note: the boundary is between CLEAR ZERO ("nothing at all", "zero", "nil") and VAGUE LOW AMOUNT ("not much", "a little", "some casual work"). Clear zero → annual_income:0. Vague → omit. When in doubt, omit.`
 
 export async function extract(
   userMessage: string,
