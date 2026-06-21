@@ -136,8 +136,17 @@ export function MessageList({
   // streaming assistant bubble appears.
   const showThinking = isLoading && lastMsg?.role === 'user'
 
-  // Chips only render once the typewriter has finished AND streaming is done.
+  // Chips only render once the typewriter has finished AND streaming is done,
+  // plus a 120ms breathing gap so the chips don't snap in the same frame as
+  // the final typewriter character — gives the reader a beat to register the
+  // end of the message before the reply options arrive.
   const chipsReady = lastIsAssistant && !isLoading && revealDone
+  const [chipsVisible, setChipsVisible] = useState(false)
+  useEffect(() => {
+    if (!chipsReady) { setChipsVisible(false); return }
+    const t = setTimeout(() => setChipsVisible(true), 120)
+    return () => clearTimeout(t)
+  }, [chipsReady])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -160,7 +169,7 @@ export function MessageList({
                 content={content}
                 streaming={isLast && (isLoading || stillRevealing)}
               />
-              {isLast && chipsReady && (
+              {isLast && chipsVisible && (
                 showGuidance && guidance ? (
                   <GuidanceCard guidance={guidance} onDismiss={onDismissGuidance} />
                 ) : (
