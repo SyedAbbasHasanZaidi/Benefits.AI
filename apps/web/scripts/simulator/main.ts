@@ -81,12 +81,33 @@ const UNTESTED_PERSONA_IDS = [
   'COUNCIL_CENTRAL_COAST_PENSIONER_RATES-eligible',
   'COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES-eligible',
   'COUNCIL_SYDNEY_HARDSHIP-eligible',
+  // Schemes with no prior coverage
+  'NSW_LIFE_SUPPORT-eligible',
+  'CARER_ALLOWANCE-eligible-working-carer',
+  'NSW_GAS_REBATE-eligible-pensioner',
+  'COUNCIL_BLACKTOWN_RATES_HARDSHIP-eligible',
+  'COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP-eligible',
+  'COUNCIL_CENTRAL_COAST_RATES_HARDSHIP-eligible',
+  'COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP-eligible',
+  'COUNCIL_SYDNEY_AQUATIC_ACCESS-eligible',
+]
+
+// The 8 personas covering schemes not in any prior run.
+const COVERAGE_PERSONA_IDS = [
+  'NSW_LIFE_SUPPORT-eligible',
+  'CARER_ALLOWANCE-eligible-working-carer',
+  'NSW_GAS_REBATE-eligible-pensioner',
+  'COUNCIL_BLACKTOWN_RATES_HARDSHIP-eligible',
+  'COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP-eligible',
+  'COUNCIL_CENTRAL_COAST_RATES_HARDSHIP-eligible',
+  'COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP-eligible',
+  'COUNCIL_SYDNEY_AQUATIC_ACCESS-eligible',
 ]
 
 interface Cli {
   personaId?: string
   level?: DisruptionLevel
-  preset?: 'curated' | 'untested'
+  preset?: 'curated' | 'untested' | 'coverage'
   sample?: number
 }
 
@@ -97,9 +118,9 @@ function parseCli(argv: string[]): Cli {
     if (arg === '--persona') out.personaId = argv[++i]
     else if (arg === '--preset') {
       const val = argv[++i]
-      if (val !== 'curated' && val !== 'untested')
-        throw new Error(`--preset must be "curated" or "untested", got "${val}"`)
-      out.preset = val as 'curated' | 'untested'
+      if (val !== 'curated' && val !== 'untested' && val !== 'coverage')
+        throw new Error(`--preset must be "curated", "untested", or "coverage", got "${val}"`)
+      out.preset = val as 'curated' | 'untested' | 'coverage'
     }
     else if (arg === '--sample') {
       const n = parseInt(argv[++i] ?? '', 10)
@@ -362,6 +383,10 @@ export async function run() {
     personas = UNTESTED_PERSONA_IDS
       .map((id) => PERSONAS.find((p) => p.id === id))
       .filter((p): p is Persona => p !== undefined)
+  } else if (cli.preset === 'coverage') {
+    personas = COVERAGE_PERSONA_IDS
+      .map((id) => PERSONAS.find((p) => p.id === id))
+      .filter((p): p is Persona => p !== undefined)
   }
 
   // --sample N: randomly pick N personas from whatever set was resolved above
@@ -371,7 +396,7 @@ export async function run() {
 
   const levels: DisruptionLevel[] = cli.level !== undefined
     ? [cli.level]
-    : (cli.preset === 'curated' || cli.preset === 'untested')
+    : (cli.preset === 'curated' || cli.preset === 'untested' || cli.preset === 'coverage')
       ? [5, 4, 3]
       : [5, 4, 3, 2, 1, 0]
 

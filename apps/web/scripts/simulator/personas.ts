@@ -514,6 +514,99 @@ export const PERSONAS: Persona[] = [
       "I own a small unit in Newtown, City of Sydney council. Lost my main income source recently and behind on rates. Citizen.",
   },
 
+  // ── Schemes with no prior coverage ─────────────────────────────────────
+  {
+    id: 'CARER_ALLOWANCE-eligible-working-carer',
+    groundTruth: { eligible: ['CARER_ALLOWANCE'] },
+    profile: {
+      is_australian_resident: true,
+      is_carer: true,
+      annual_income: 65000,
+    },
+    backstory:
+      "I care for my daughter who has cerebral palsy — she needs help with pretty much everything daily. I still work part-time as an admin, about $65k a year. Australian citizen in Melbourne.",
+  },
+  {
+    id: 'NSW_GAS_REBATE-eligible-pensioner',
+    groundTruth: { eligible: ['NSW_GAS_REBATE'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      age: 71,
+      employment_status: 'retired',
+      annual_income: 20000,
+      number_of_children: 0,
+    },
+    backstory:
+      "I'm 71, fully retired in Wollongong, NSW. Get about $20k a year from super. Just me at home. Gas bills are getting expensive. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_BLACKTOWN_RATES_HARDSHIP-eligible',
+    groundTruth: { eligible: ['COUNCIL_BLACKTOWN_RATES_HARDSHIP'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'BLACKTOWN',
+      tenure_type: 'owning',
+      has_financial_hardship: true,
+    },
+    backstory:
+      "I own my house in Blacktown but fell behind on rates after losing my job six months ago. Just can't keep up with the bills. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP-eligible',
+    groundTruth: { eligible: ['COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'CANTERBURY_BANKSTOWN',
+      tenure_type: 'owning',
+      has_financial_hardship: true,
+    },
+    backstory:
+      "Own my place in Lakemba — Canterbury-Bankstown council. Went through a divorce last year and the finances are a mess. Behind on council rates. Citizen.",
+  },
+  {
+    id: 'COUNCIL_CENTRAL_COAST_RATES_HARDSHIP-eligible',
+    groundTruth: { eligible: ['COUNCIL_CENTRAL_COAST_RATES_HARDSHIP'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'CENTRAL_COAST',
+      tenure_type: 'owning',
+      has_financial_hardship: true,
+    },
+    backstory:
+      "Own a small house in Gosford, Central Coast. Had some unexpected medical bills and I'm struggling to keep up with rates. Aussie citizen.",
+  },
+  {
+    id: 'COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP-eligible',
+    groundTruth: { eligible: ['COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP'] },
+    profile: {
+      is_australian_resident: true,
+      state: 'NSW',
+      council_lga: 'NORTHERN_BEACHES',
+      tenure_type: 'owning',
+      has_financial_hardship: true,
+    },
+    backstory:
+      "I own a unit in Dee Why — Northern Beaches council. Lost work for a few months and got behind on rates. Things are tight. Australian citizen.",
+  },
+  {
+    id: 'COUNCIL_SYDNEY_AQUATIC_ACCESS-eligible',
+    groundTruth: { eligible: ['COUNCIL_SYDNEY_AQUATIC_ACCESS'] },
+    profile: {
+      is_australian_resident: true,
+      council_lga: 'SYDNEY',
+      age: 72,
+      annual_income: 20000,
+      number_of_children: 0,
+      employment_status: 'retired',
+    },
+    backstory:
+      "I'm 72, retired in Glebe — City of Sydney council. Get about $20k from super. I'd love to swim at the Prince Alfred Park pool but the prices add up. Australian citizen.",
+  },
+
   // ── Negative / boundary cases ───────────────────────────────────────────
   {
     id: 'FTB_A-ineligible-high-income',
