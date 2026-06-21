@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -72,10 +72,16 @@ function AssistantMark() {
 }
 
 // ── Bubble ───────────────────────────────────────────────────────────────────
-// Presentational only. The typewriter lives in MessageList so it can gate
-// quick-reply chips on the reveal actually finishing.
+// Wrapped in React.memo so historical messages don't re-render while the
+// active assistant message is being streamed. The memo comparison is by
+// default shallow — content and streaming are primitives, so this is exact.
 
-export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+export const MessageBubble = React.memo(function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+  // useMemo means renderMarkdown only re-runs when content changes.
+  // For historical messages (stable content) this is a no-op after first render.
+  // For the streaming message this runs each frame, which is required.
+  const rendered = useMemo(() => renderMarkdown(content), [content])
+
   if (role === 'user') {
     return (
       <div style={{ alignSelf: 'flex-end', maxWidth: '82%' }}>
@@ -98,9 +104,9 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
         paddingTop: 3, fontSize: 15.5, lineHeight: 1.62,
         color: 'var(--text-soft)', flex: 1, minWidth: 0,
       }}>
-        {renderMarkdown(content)}
+        {rendered}
         {streaming && <span className="caret" />}
       </div>
     </div>
   )
-}
+})

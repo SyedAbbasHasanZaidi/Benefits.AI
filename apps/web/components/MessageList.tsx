@@ -20,10 +20,13 @@ interface MessageListProps {
 
 // ── Smooth typewriter ────────────────────────────────────────────────────────
 // Reveals streamed assistant text at a steady character rate via
-// requestAnimationFrame. Continues running even after `streaming` flips false,
-// so the closing flush of tokens from the LLM doesn't dump into the bubble.
-// Lifted into MessageList so the parent knows when reveal is finished and can
-// gate quick-reply chips behind it.
+// requestAnimationFrame. Continues running after `streaming` flips false so
+// the trailing flush of tokens still plays out smoothly.
+//
+// Speed design: 48–72 cps narrow range prevents the burst–stall pattern that
+// makes streaming feel choppy. Rather than aggressively chasing the LLM's
+// burst rate (which causes visible speed changes), we let the buffer absorb
+// variance and render at a pace close to comfortable reading speed.
 function useSmoothReveal(
   target: string,
   messageId: string | undefined,
@@ -38,7 +41,7 @@ function useSmoothReveal(
   if (streaming) everStreamedRef.current = true
 
   useEffect(() => {
-    // Message identity changed (new assistant turn) — reset state.
+    // Message identity changed (new assistant turn) — reset.
     if (messageId !== lastIdRef.current) {
       lastIdRef.current = messageId
       everStreamedRef.current = streaming
@@ -57,15 +60,13 @@ function useSmoothReveal(
       setDisplayed('')
     }
 
-    // Animate to completion — runs regardless of `streaming` so the trailing
-    // flush of tokens still plays out smoothly.
     let cancelled = false
     let lastTime: number | null = null
 
     const tick = (now: number) => {
       if (cancelled) return
       if (lastTime === null) lastTime = now
-      const deltaMs = now - lastTime
+      const deltaMs = Math.min(now - lastTime, 50) // clamp to 50ms to survive tab switches
       lastTime = now
 
       setDisplayed((prev) => {
@@ -73,12 +74,14 @@ function useSmoothReveal(
         const buffered = targetNow.length - prev.length
         if (buffered <= 0) return prev
 
-        // Adaptive speed: 26 cps baseline, up to 90 cps when the buffer is large
-        const baseCps = 26
-        const cps = Math.min(90, baseCps + buffered * 1.5)
+        // Narrow speed range: 48 cps baseline, gentle ramp up to 72 cps when
+        // the buffer exceeds 18 chars. This absorbs LLM token bursts without
+        // producing the fast-then-slow rhythm that feels choppy.
+        const BASE_CPS = 48
+        const MAX_CPS  = 72
+        const cps = Math.min(MAX_CPS, BASE_CPS + Math.max(0, buffered - 18) * 1.3)
         const charsToAdd = Math.max(1, Math.round((deltaMs / 1000) * cps))
-        const nextLen = Math.min(targetNow.length, prev.length + charsToAdd)
-        return targetNow.slice(0, nextLen)
+        return targetNow.slice(0, prev.length + charsToAdd)
       })
 
       requestAnimationFrame(tick)
@@ -117,6 +120,9 @@ export function MessageList({
   onChipClick,
   onDismissGuidance,
 }: MessageListProps) {
+  // Ref to the scrollable container — used for instant scroll during streaming.
+  const scrollableRef = useRef<HTMLDivElement>(null)
+  // Ref to a sentinel div at the very bottom — used for smooth scroll on events.
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const visible = messages.filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -124,23 +130,18 @@ export function MessageList({
   const lastIsAssistant = lastMsg?.role === 'assistant'
   const streamingLast = isLoading && lastIsAssistant
 
-  // Smooth-reveal the last assistant message only. Other messages render whole.
   const { displayed: lastDisplay, done: revealDone } = useSmoothReveal(
     lastIsAssistant ? lastMsg.content : '',
     lastIsAssistant ? lastMsg.id : undefined,
     streamingLast,
   )
 
-  // Thinking indicator while waiting for the FIRST token of an assistant turn
-  // (i.e. last message is still the user's). It unmounts the moment the
-  // streaming assistant bubble appears.
   const showThinking = isLoading && lastMsg?.role === 'user'
 
-  // Chips only render once the typewriter has finished AND streaming is done,
-  // plus a 120ms breathing gap so the chips don't snap in the same frame as
-  // the final typewriter character — gives the reader a beat to register the
-  // end of the message before the reply options arrive.
   const chipsReady = lastIsAssistant && !isLoading && revealDone
+
+  // 120ms breathing gap — chips appear slightly after the last typewriter
+  // character so the reader has a beat to register the end of the message.
   const [chipsVisible, setChipsVisible] = useState(false)
   useEffect(() => {
     if (!chipsReady) { setChipsVisible(false); return }
@@ -148,12 +149,31 @@ export function MessageList({
     return () => clearTimeout(t)
   }, [chipsReady])
 
+  // ── Scroll strategy ────────────────────────────────────────────────────────
+  // During streaming: assign scrollTop directly (instant, no animation) so the
+  // view stays pinned to the bottom without fighting a smooth-scroll animation.
+  // Calling scrollIntoView('smooth') 60× per second restarts the browser's
+  // scroll animation each frame, which produces jitter rather than smooth motion.
+  //
+  // Discrete events (new message, chips appearing): one smooth scroll.
+  const revealing = !revealDone || isLoading
+
   useEffect(() => {
+    if (!revealing) return
+    const el = scrollableRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lastDisplay, revealing])
+
+  useEffect(() => {
+    if (revealing) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [lastDisplay, showGuidance, isLoading, chips.length])
+  }, [visible.length, showGuidance, chipsVisible, revealing])
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '34px 0', minHeight: 0 }}>
+    <div
+      ref={scrollableRef}
+      style={{ flex: 1, overflowY: 'auto', padding: '34px 0', minHeight: 0 }}
+    >
       <div style={{
         maxWidth: 720, margin: '0 auto', padding: '0 26px',
         display: 'flex', flexDirection: 'column', gap: 26,
