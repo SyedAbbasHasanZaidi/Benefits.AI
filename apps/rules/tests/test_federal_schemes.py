@@ -109,6 +109,15 @@ class TestRentAssistance:
         })
         assert "RENT_ASSISTANCE" in data["ineligible"]
 
+    def test_eligible_boarding_house(self, client):
+        """Boarders paying regular rent to a private landlord qualify for Rent Assistance."""
+        data = post_calculate(client, {
+            "is_australian_resident": True,
+            "tenure_type": "boarding",
+            "rent_paid_fortnightly": 400.0,
+        })
+        assert "RENT_ASSISTANCE" in data["eligible"]
+
 
 # ── JobSeeker Payment ─────────────────────────────────────────────────────────
 

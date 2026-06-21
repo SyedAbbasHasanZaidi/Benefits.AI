@@ -9,7 +9,6 @@ required_inputs:
   - state
   - annual_income
   - age
-  - number_of_children
 plain_description: >
   An annual rebate of up to $285 off electricity bills for eligible low-income
   NSW households. Available to holders of the Pensioner Concession Card,

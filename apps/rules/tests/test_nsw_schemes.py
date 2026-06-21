@@ -38,6 +38,18 @@ class TestNswLowIncomeRebate:
         })
         assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["eligible"]
 
+    def test_eligible_nsw_pensioner_no_children_field(self, client):
+        """Pensioner should qualify without number_of_children being provided at all.
+        Previously blocked because number_of_children was in required_inputs."""
+        data = post_calculate(client, {
+            "state": "NSW",
+            "annual_income": 22000.0,
+            "age": 72,
+            "employment_status": "retired",
+            # number_of_children deliberately omitted
+        })
+        assert "NSW_LOW_INCOME_HOUSEHOLD_REBATE" in data["eligible"]
+
     def test_ineligible_not_nsw(self, client):
         data = post_calculate(client, {
             "state": "VIC",

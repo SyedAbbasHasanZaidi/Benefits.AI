@@ -12,7 +12,8 @@ class rent_assistance_eligible(Variable):
 
     def formula(person, period, parameters):  # noqa: N805
         is_resident = person("is_australian_resident", period)
-        is_renting = person("tenure_type", period) == "renting"
+        tenure = person("tenure_type", period)
+        is_renting = (tenure == "renting") | (tenure == "boarding")
         rent = person("rent_paid_fortnightly", period)
         min_rent = parameters(period).federal.rent_assistance.min_rent_fortnightly
         pays_enough_rent = rent > min_rent
