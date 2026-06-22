@@ -56,6 +56,9 @@ export interface TurnContext {
   skippedAt: Record<string, number>
   // Non-null when mode === 'handoff': pre-built response, no LLM call needed.
   handoffMessage: string | null
+  // Non-null when a variable just entered skip cooldown this turn. The bot
+  // uses this to acknowledge the hold-on before asking the next question.
+  justSkipped: string | null
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -441,6 +444,7 @@ export function buildSystemPrompt(
   nextQuestion: NextQuestion | null,
   mode: ConversationMode,
   contradictions: ContradictionDetail[],
+  justSkipped: string | null = null,
 ): string {
   const eligibleNames = eligibility.eligible.join(', ') || 'none yet'
   const needsInfoNames = eligibility.needs_info.map((n) => n.schemeId).join(', ') || 'none'
@@ -472,9 +476,14 @@ Ask ONE short, friendly question to clarify which value is correct. Name both va
     const questionInstruction = nextQuestion
       ? `Ask EXACTLY this question, nothing else: "${nextQuestion.question}"`
       : 'All profile information has been collected. Let the user know you have everything you need and are checking their eligibility.'
+
+    const acknowledgment = justSkipped
+      ? `The user was not able to answer about "${justSkipped}" after two attempts. The orchestrator has put that question on hold and moved on. Open with a brief, warm acknowledgment that it is okay — one short sentence only (e.g. "No worries, we can come back to that." or "That's okay, let's move on for now."). Do NOT repeat or rephrase the skipped question.`
+      : `Acknowledge one specific thing from the user's last message (not a generic affirmation).`
+
     modeBlock = `MODE: collecting_info
 
-Acknowledge one specific thing from the user's last message (not a generic affirmation).
+${acknowledgment}
 ${questionInstruction}`
   }
 
@@ -723,8 +732,13 @@ export async function prepareTurn(
     console.error('prepareTurn: retriever error', err)
   }
 
-  // 6. Build system prompt
-  const systemPrompt = buildSystemPrompt(merged, eligibility, chunks, nextQuestion, mode, contradictions)
+  // 6. Detect any variable that just entered cooldown this turn.
+  //    Used by buildSystemPrompt so the bot acknowledges the skip gracefully
+  //    rather than silently pivoting to a new question.
+  const justSkipped = Object.keys(newSkippedAt).find((v) => !(v in skippedAt)) ?? null
+
+  // 7. Build system prompt
+  const systemPrompt = buildSystemPrompt(merged, eligibility, chunks, nextQuestion, mode, contradictions, justSkipped)
 
   return {
     profileDelta: fullDelta,
@@ -743,5 +757,6 @@ export async function prepareTurn(
     askedStreak: newAskedStreak,
     skippedAt: newSkippedAt,
     handoffMessage: mode === 'handoff' ? buildHandoffMessage(eligibility, chunks) : null,
+    justSkipped,
   }
 }
