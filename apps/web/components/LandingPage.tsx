@@ -67,6 +67,12 @@ export function LandingPage() {
   const { user, isLoading } = useAuth()
   const { toasts, addToast, dismiss } = useToasts()
 
+  // MVP: wipe the chat session whenever the user lands here so every new
+  // conversation starts fresh instead of restoring the previous one.
+  useEffect(() => {
+    localStorage.removeItem('benefits_chat_state')
+  }, [])
+
   const [input, setInput] = useState('')
   const [focused, setFocused] = useState(false)
   const [shift, setShift] = useState(0)
