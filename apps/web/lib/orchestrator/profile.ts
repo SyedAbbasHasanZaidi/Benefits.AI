@@ -1,5 +1,5 @@
 export type TenureType = 'renting' | 'owning' | 'boarding'
-export type EmploymentStatus = 'employed' | 'retired' | 'unemployed' | 'student'
+export type EmploymentStatus = 'full_time' | 'part_time' | 'unemployed' | 'self_employed' | 'retired' | 'student' | 'not_seeking'
 
 export interface ProfileVariables {
   is_australian_resident?: boolean

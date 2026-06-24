@@ -102,7 +102,8 @@ describe('pickNextQuestion — chips', () => {
       { JOBSEEKER: { missing: ['employment_status'] } },
       eligibilityNeeding('employment_status'),
     )
-    expect(q?.chips).toContain('Employed')
+    expect(q?.chips).toContain('Full-time')
+    expect(q?.chips).toContain('Part-time')
     expect(q?.chips).toContain('Retired')
   })
 

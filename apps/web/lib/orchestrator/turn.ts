@@ -82,7 +82,7 @@ const BINARY_CHIP_VARS = new Set<keyof ProfileVariables>([
 
 const ENUM_CHIPS: Partial<Record<keyof ProfileVariables, string[]>> = {
   tenure_type: ['Renting', 'Own my home', 'Boarding'],
-  employment_status: ['Employed', 'Retired', 'Unemployed', 'Student'],
+  employment_status: ['Full-time', 'Part-time', 'Retired', 'Unemployed', 'Student'],
   state: ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'],
 }
 
@@ -398,13 +398,14 @@ export function mapChipToVariable(
   }
 
   if (variable === 'employment_status') {
-    const map: Record<string, 'employed' | 'retired' | 'unemployed' | 'student'> = {
-      employed: 'employed',
+    const map: Record<string, string> = {
+      'full-time': 'full_time',
+      'part-time': 'part_time',
       retired: 'retired',
       unemployed: 'unemployed',
       student: 'student',
     }
-    if (map[lower]) return { employment_status: map[lower] }
+    if (map[lower]) return { employment_status: map[lower] as ProfileVariables['employment_status'] }
   }
 
   if (variable === 'state') {

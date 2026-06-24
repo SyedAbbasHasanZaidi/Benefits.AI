@@ -33,7 +33,7 @@ Schema (extract only these keys):
   number_of_children      number
   youngest_child_age      number
   has_partner             boolean
-  employment_status       "employed" | "retired" | "unemployed" | "student"
+  employment_status       "full_time" | "part_time" | "unemployed" | "self_employed" | "retired" | "student" | "not_seeking"
   hours_worked_per_week   number
   has_disability          boolean
   is_carer                boolean
