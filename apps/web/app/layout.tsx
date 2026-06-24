@@ -7,7 +7,7 @@ const hanken = Hanken_Grotesk({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-hanken',
-  display: 'swap',
+  display: 'fallback',
 })
 
 export const metadata: Metadata = {

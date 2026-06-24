@@ -30,10 +30,18 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-optical-sizing: auto;
+  font-kerning: normal;
 }
 button { font-family: inherit; cursor: pointer; }
 ::selection { background: var(--accent-tint); }

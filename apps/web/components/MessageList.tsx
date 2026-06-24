@@ -37,6 +37,10 @@ function useSmoothReveal(
   targetRef.current = target
   const everStreamedRef = useRef(streaming)
   const lastIdRef = useRef<string | undefined>(messageId)
+  // Fractional char accumulator — carries sub-character remainder across frames
+  // so the effective rate matches the target CPS exactly instead of rounding up
+  // to 1 char/frame every tick (which overshoots at cps < 60).
+  const accRef = useRef(0)
 
   if (streaming) everStreamedRef.current = true
 
@@ -45,6 +49,7 @@ function useSmoothReveal(
     if (messageId !== lastIdRef.current) {
       lastIdRef.current = messageId
       everStreamedRef.current = streaming
+      accRef.current = 0
       setDisplayed(streaming ? '' : target)
       if (!streaming) return
     }
@@ -58,6 +63,7 @@ function useSmoothReveal(
     // Target shrank or diverged → reset (shouldn't happen mid-stream).
     if (target.length < displayed.length || !target.startsWith(displayed)) {
       setDisplayed('')
+      accRef.current = 0
     }
 
     let cancelled = false
@@ -75,12 +81,15 @@ function useSmoothReveal(
         if (buffered <= 0) return prev
 
         // Narrow speed range: 48 cps baseline, gentle ramp up to 72 cps when
-        // the buffer exceeds 18 chars. This absorbs LLM token bursts without
-        // producing the fast-then-slow rhythm that feels choppy.
+        // the buffer exceeds 18 chars. Accumulate fractional chars across frames
+        // so the effective rate is exact rather than rounding 0.8 → 1 every tick.
         const BASE_CPS = 48
         const MAX_CPS  = 72
         const cps = Math.min(MAX_CPS, BASE_CPS + Math.max(0, buffered - 18) * 1.3)
-        const charsToAdd = Math.max(1, Math.round((deltaMs / 1000) * cps))
+        accRef.current += (deltaMs / 1000) * cps
+        const charsToAdd = Math.floor(accRef.current)
+        if (charsToAdd === 0) return prev
+        accRef.current -= charsToAdd
         return targetNow.slice(0, prev.length + charsToAdd)
       })
 
