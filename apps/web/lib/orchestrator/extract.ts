@@ -78,8 +78,16 @@ Example 9:city-to-state mapping is deterministic and welcome (Sydney→NSW, Melb
 User: "im 28 living in melbs, no job rn"
 Output: {"age":28,"state":"VIC","employment_status":"unemployed"}
 
-Example 10:travel ≠ residency claim. Only set is_australian_resident when user says citizen / permanent resident / "I'm Australian":
+Example 10:travel ≠ residency claim. Only set is_australian_resident when user explicitly claims it (citizen, permanent resident, "I'm Australian", "Australian resident"). Do NOT infer residency from location or travel:
 User: "just got back from overseas"
+Output: {}
+User: "I'm an Australian resident"
+Output: {"is_australian_resident":true}
+User: "Australian resident, been here 30 years"
+Output: {"is_australian_resident":true}
+User: "I'm a citizen"
+Output: {"is_australian_resident":true}
+User: "I live in Sydney"
 Output: {}
 
 Example 11:"just had my birthday" / "just turned" implies age + 1:
@@ -98,11 +106,17 @@ Output: {}
 User: "around 30 hours a week"
 Output: {"hours_worked_per_week":30}   // a single approximate value is fine; a RANGE is not
 
-Example 13:abbreviated income amounts ("k" suffix, with or without "$"):
+Example 13:abbreviated and approximate income amounts. Single approximate values (prefixed with "about", "around", "roughly", "maybe", "~") are fine to extract — they are NOT ranges:
 User: "i get bout 25k a yr frm super"
 Output: {"annual_income":25000,"employment_status":"retired"}
 User: "earnt maybe 5k since i got made redundant, before that was on 75k"
 Output: {"annual_income":5000,"employment_status":"unemployed"}
+User: "earn about $18,000 a year"
+Output: {"annual_income":18000}
+User: "I make roughly $52k"
+Output: {"annual_income":52000}
+User: "around $900 a fortnight in rent"
+Output: {"rent_paid_fortnightly":900}
 Note: when two income figures are present (a prior job and a current situation), extract the CURRENT/MOST RECENT one only.
 
 Example 14:zero is a specific figure. Set annual_income:0 when the user clearly states they have no income at all. Do NOT set it when the amount is vague or uncertain:
