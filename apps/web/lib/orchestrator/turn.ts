@@ -436,6 +436,38 @@ export function toEligibilityResult(rulesResult: RulesResult): EligibilityResult
   }
 }
 
+// ── Scheme display names ──────────────────────────────────────────────────────
+
+const SCHEME_FRIENDLY_NAMES: Record<string, string> = {
+  AGE_PENSION:                                         'Age Pension',
+  CARER_ALLOWANCE:                                     'Carer Allowance',
+  CARER_PAYMENT:                                       'Carer Payment',
+  DSP:                                                 'Disability Support Pension',
+  FTB_A:                                               'Family Tax Benefit Part A',
+  FTB_B:                                               'Family Tax Benefit Part B',
+  JOBSEEKER:                                           'JobSeeker Payment',
+  LIHCC:                                               'Low Income Health Care Card',
+  NSW_EAPA:                                            'Energy Accounts Payment Assistance',
+  NSW_GAS_REBATE:                                      'NSW Gas Rebate',
+  NSW_LIFE_SUPPORT_REBATE:                             'NSW Life Support Rebate',
+  NSW_LOW_INCOME_HOUSEHOLD_REBATE:                     'NSW Low Income Household Rebate',
+  NSW_SENIORS_CARD:                                    'NSW Seniors Card',
+  PARENTING_PAYMENT:                                   'Parenting Payment',
+  RENT_ASSISTANCE:                                     'Commonwealth Rent Assistance',
+  YOUTH_ALLOWANCE:                                     'Youth Allowance',
+  COUNCIL_BLACKTOWN_PENSIONER_RATES_REBATE:            'City of Blacktown - Pensioner Rates Rebate',
+  COUNCIL_BLACKTOWN_RATES_HARDSHIP:                    'City of Blacktown - Rates Hardship Assistance',
+  COUNCIL_CANTERBURY_BANKSTOWN_PENSIONER_RATES_REBATE: 'Canterbury-Bankstown - Pensioner Rates Rebate',
+  COUNCIL_CANTERBURY_BANKSTOWN_RATES_HARDSHIP:         'Canterbury-Bankstown - Rates Hardship Assistance',
+  COUNCIL_CENTRAL_COAST_PENSIONER_RATES_REBATE:        'Central Coast - Pensioner Rates Rebate',
+  COUNCIL_CENTRAL_COAST_RATES_HARDSHIP:                'Central Coast - Rates Hardship Assistance',
+  COUNCIL_NORTHERN_BEACHES_PENSIONER_RATES_REBATE:     'Northern Beaches - Pensioner Rates Rebate',
+  COUNCIL_NORTHERN_BEACHES_RATES_HARDSHIP:             'Northern Beaches - Rates Hardship Assistance',
+  COUNCIL_SYDNEY_PENSIONER_RATES_REBATE:               'City of Sydney - Pensioner Rates Rebate',
+  COUNCIL_SYDNEY_RATES_HARDSHIP:                       'City of Sydney - Rates Hardship Assistance',
+  COUNCIL_SYDNEY_AQUATIC_ACCESS:                       'City of Sydney - Aquatic Centre Access Card',
+}
+
 // ── System prompt builder ─────────────────────────────────────────────────────
 
 export function buildSystemPrompt(
@@ -451,6 +483,9 @@ export function buildSystemPrompt(
   const needsInfoNames = eligibility.needs_info.map((n) => n.schemeId).join(', ') || 'none'
   const ineligibleNames = eligibility.ineligible.join(', ') || 'none yet'
   const sources = chunks.map((c) => `[${c.scheme_id}] ${c.chunk_text}`).join('\n\n')
+  const eligibleFriendly = eligibility.eligible
+    .map((id) => SCHEME_FRIENDLY_NAMES[id] ?? id)
+    .join(', ') || ''
 
   let modeBlock: string
 
@@ -474,18 +509,25 @@ ${details}
 Ask ONE short, friendly question to clarify which value is correct. Name both values explicitly so the user can confirm. Do not ask about any other topic.`
 
   } else {
-    const questionInstruction = nextQuestion
-      ? `Ask EXACTLY this question, nothing else: "${nextQuestion.question}"`
-      : 'All profile information has been collected. Let the user know you have everything you need and are checking their eligibility.'
+    const skippedNote = justSkipped
+      ? `Note: the previous question about "${justSkipped}" was skipped — open with one warm sentence acknowledging that is fine before continuing.`
+      : ''
 
-    const acknowledgment = justSkipped
-      ? `The user was not able to answer about "${justSkipped}" after two attempts. The orchestrator has put that question on hold and moved on. Open with a brief, warm acknowledgment that it is okay — one short sentence only (e.g. "No worries, we can come back to that." or "That's okay, let's move on for now."). Do NOT repeat or rephrase the skipped question.`
-      : `Acknowledge one specific thing from the user's last message (not a generic affirmation).`
+    const eligibleNote = eligibleFriendly
+      ? `Currently eligible programs: ${eligibleFriendly}. Mention these by name in italics and note that answering the next question may uncover more programs.`
+      : ''
+
+    const questionInstruction = nextQuestion
+      ? `Next question to ask (use this exact wording): "${nextQuestion.question}"`
+      : 'All questions answered. Let the user know you have everything and are checking their eligibility.'
 
     modeBlock = `MODE: collecting_info
 
-${acknowledgment}
-${questionInstruction}`
+${skippedNote}
+${eligibleNote}
+${questionInstruction}
+
+Keep the response to 2-3 sentences. Do not explain programs, give amounts, or list application steps.`
   }
 
   return `You are Benefits.AI, a friendly Australian government benefits advisor. Your role is to generate natural language only. All decisions about what to ask, when to stop, and what data is valid have been made by the orchestrator.
@@ -496,10 +538,10 @@ STYLE RULES (apply in every response):
 - BANNED FAKE-NOTED OPENERS: do NOT say "I have that noted down", "I have that noted", "You've mentioned X a couple of times", "I see you're...", "Just to make sure I've got this", "Thanks for confirming X". You may reflect the user's last message back verbatim, but never reference earlier turns or context not currently in the profile JSON.
 - No em dashes in any response. Use commas, semicolons, colons, or a plain hyphen.
 - If you are about to ask for information the user appears to have stated in their most recent message, do NOT echo it back and then re-ask. Either ask for confirmation only ("Just to lock in the figure — was that $25,000 a year?") or ask the question cleanly without referencing the stated value.
-- Plain prose only. No markdown, no bullet lists, no bold, no headings. Just sentences.
+- Plain prose only. The only formatting allowed is italics (*name*) for program names. No bullet lists, no bold, no headings.
 - NEVER invent questions. You may ONLY ask what the orchestrator has scripted. Do NOT ask about income source, income type, asset values, visa subclass, relationship details, or any other topic outside the 16 schema variables. If the user's message appears to have already answered the scripted question, ask EXACTLY the scripted question anyway — the extraction system handles capturing the value, not you.
-- When stating eligibility, always use "you appear eligible" or "you may qualify". Never use definitive language.
-- For factual claims about payment amounts, conditions, or handoff steps: cite the source inline like [SCHEME_ID]. If a fact is not in the Official sources below, say you do not have that information rather than guessing.
+- NEVER explain what a program is, state payment amounts, or list application steps in this chat. All of that is on the Results page.
+- When stating eligibility, always use "you may currently be eligible" or "you may qualify". Never use definitive language.
 
 Current profile (do not ask for anything already present here):
 ${JSON.stringify(mergedProfile, null, 2)}
@@ -574,28 +616,14 @@ export function buildBotContext(
  */
 export function buildHandoffMessage(
   eligibility: EligibilityResult,
-  chunks: CorpusChunk[],
+  _chunks: CorpusChunk[],
 ): string {
-  const schemeList = eligibility.eligible.join(' and ')
-  const intro = `Based on everything you've shared, you appear eligible for ${schemeList}.`
-
-  const chunkMap = new Map(chunks.map((c) => [c.scheme_id, c.chunk_text]))
-
-  const steps = eligibility.eligible
-    .map((schemeId) => {
-      const chunk = chunkMap.get(schemeId)
-      if (!chunk) return null
-      const match = chunk.match(/##\s*(?:How to apply|How to claim|Applying|Next steps?|What to do)\s*\r?\n+([\s\S]*?)(?=\r?\n##|$)/i)
-      const step = match ? match[1].trim().replace(/\r?\n+/g, ' ') : null
-      return step ? `For ${schemeId}: ${step}` : null
-    })
-    .filter((s): s is string => s !== null)
-
-  const body = steps.length > 0
-    ? steps.join(' ')
-    : 'Check your eligibility meter on screen for next steps.'
-
-  return `${intro} Your eligibility meter on screen has your full results. ${body}`
+  const names = eligibility.eligible
+    .map((id) => `*${SCHEME_FRIENDLY_NAMES[id] ?? id}*`)
+  const list = names.length <= 2
+    ? names.join(' and ')
+    : `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+  return `You may currently be eligible for ${list}. Your full results are ready - check your eligibility summary on screen for details and next steps.`
 }
 
 // ── prepareTurn ───────────────────────────────────────────────────────────────
