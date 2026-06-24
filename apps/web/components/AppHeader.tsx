@@ -371,9 +371,10 @@ interface AppHeaderProps {
   onToast?: (t: Omit<Toast, 'id'>) => void
   bordered?: boolean
   rightExtra?: React.ReactNode
+  leftExtra?: React.ReactNode
 }
 
-export function AppHeader({ onToast, bordered = false, rightExtra }: AppHeaderProps) {
+export function AppHeader({ onToast, bordered = false, rightExtra, leftExtra }: AppHeaderProps) {
   const [signInOpen, setSignInOpen] = useState(false)
   const [howOpen, setHowOpen] = useState(false)
 
@@ -386,7 +387,10 @@ export function AppHeader({ onToast, bordered = false, rightExtra }: AppHeaderPr
         background: bordered ? 'var(--surface)' : 'transparent',
         flexShrink: 0,
       }}>
-        <SettingsMenu onSignIn={() => setSignInOpen(true)} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {leftExtra}
+          <SettingsMenu onSignIn={() => setSignInOpen(true)} />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {rightExtra}
           <button

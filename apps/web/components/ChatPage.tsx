@@ -430,22 +430,20 @@ export function ChatPage({ schemes }: ChatPageProps) {
   })()
   const showMeter = stage === 'conversation' && meterState.show
 
-  const backArrow = (
+  const backButton = (
     <button
       onClick={() => router.push('/')}
       aria-label="Back to home"
+      className="icon-btn"
       style={{
-        position: 'fixed', top: 14, left: 16, zIndex: 70,
         display: 'grid', placeItems: 'center',
         width: 32, height: 32, borderRadius: 9,
         background: 'transparent', border: 'none',
         color: 'var(--muted)', cursor: 'pointer',
-        transition: 'color 160ms ease, background 160ms ease',
+        flexShrink: 0,
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
     >
-      <svg viewBox="0 0 24 24" fill="none" width={18} height={18} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" width={17} height={17} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M19 12H5" /><path d="m12 5-7 7 7 7" />
       </svg>
     </button>
@@ -459,7 +457,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
-        {backArrow}
         <AppHeader onToast={addToast} />
         <div className={`view-anim${leaving ? ' leaving' : ''}`}>
           <Discovery done={discoveryDone} />
@@ -476,7 +473,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
         background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
         color: 'var(--text)', fontFamily: 'var(--font-body)',
       }}>
-        {backArrow}
         <div className={`view-anim${leaving ? ' leaving' : ''}`}>
           <Results
             data={results}
@@ -496,10 +492,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
       color: 'var(--text)', fontFamily: 'var(--font-body)',
     }}>
 
-      {backArrow}
-
-      {/* ── Header (same as landing) ── */}
-      <AppHeader onToast={addToast} />
+      {/* ── Header with back arrow on the left ── */}
+      <AppHeader onToast={addToast} leftExtra={backButton} />
 
       {/* ── Message thread (wrapped for smooth stage transitions) ── */}
       <div
