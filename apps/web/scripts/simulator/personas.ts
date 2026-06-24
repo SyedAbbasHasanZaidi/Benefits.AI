@@ -188,7 +188,7 @@ export const PERSONAS: Persona[] = [
       state: 'NSW',
       age: 65,
       hours_worked_per_week: 10,
-      employment_status: 'employed',
+      employment_status: 'full_time',
     },
     backstory:
       "I'm 65, NSW. Still work about 10 hours a week at the local hardware store, mostly for company. Aussie citizen, hoping for the seniors card.",
@@ -241,7 +241,7 @@ export const PERSONAS: Persona[] = [
     profile: {
       is_australian_resident: true,
       age: 22,
-      employment_status: 'employed',
+      employment_status: 'full_time',
       annual_income: 8000,
       hours_worked_per_week: 8,
     },
@@ -280,7 +280,7 @@ export const PERSONAS: Persona[] = [
     profile: {
       is_australian_resident: true,
       age: 45,
-      employment_status: 'employed',
+      employment_status: 'full_time',
       annual_income: 15000,
       hours_worked_per_week: 10,
     },

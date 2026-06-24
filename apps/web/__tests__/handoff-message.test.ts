@@ -20,39 +20,44 @@ const mockChunks: CorpusChunk[] = [
 ]
 
 describe('buildHandoffMessage', () => {
-  test('includes scheme name in intro', () => {
+  test('includes a friendly scheme name in the intro', () => {
     const msg = buildHandoffMessage(mockEligibility, mockChunks)
-    expect(msg).toContain('JOBSEEKER')
+    // scheme IDs are mapped to friendly names; JOBSEEKER → JobSeeker Payment
+    expect(msg).toContain('JobSeeker')
   })
 
-  test('includes how-to-apply step from corpus chunk', () => {
+  test('references the on-screen results summary', () => {
     const msg = buildHandoffMessage(mockEligibility, mockChunks)
-    expect(msg).toContain('myGov')
+    expect(msg).toContain('eligibility summary')
   })
 
-  test('includes eligibility meter reference', () => {
-    const msg = buildHandoffMessage(mockEligibility, mockChunks)
-    expect(msg).toContain('eligibility meter')
-  })
-
-  test('falls back gracefully when no chunk available', () => {
+  test('works without corpus chunks', () => {
     const msg = buildHandoffMessage(mockEligibility, [])
-    expect(msg).toContain('JOBSEEKER')
-    expect(msg).toContain('eligibility meter')
+    expect(msg).toContain('JobSeeker')
+    expect(msg).toContain('eligibility summary')
   })
 
-  test('extracts apply step from alternate heading "How to claim"', () => {
-    const chunk: CorpusChunk = {
-      id: '2',
-      scheme_id: 'LIHCC',
-      chunk_text: '# LIHCC\n\n## Who can get it\n\n...\n\n## How to claim\n\nApply via myGov or call 132 490.',
-      metadata: {},
-      similarity: 0.85,
-    }
+  test('formats two schemes with "and"', () => {
     const msg = buildHandoffMessage(
-      { eligible: ['LIHCC'], needs_info: [], ineligible: [] },
-      [chunk],
+      { eligible: ['JOBSEEKER', 'RENT_ASSISTANCE'], needs_info: [], ineligible: [] },
+      [],
     )
-    expect(msg).toContain('132 490')
+    expect(msg).toMatch(/eligible for .+ and .+/)
+  })
+
+  test('formats three or more schemes with Oxford comma', () => {
+    const msg = buildHandoffMessage(
+      { eligible: ['JOBSEEKER', 'RENT_ASSISTANCE', 'LIHCC'], needs_info: [], ineligible: [] },
+      [],
+    )
+    expect(msg).toContain(', and ')
+  })
+
+  test('unknown scheme ID falls back to raw ID', () => {
+    const msg = buildHandoffMessage(
+      { eligible: ['UNKNOWN_SCHEME'], needs_info: [], ineligible: [] },
+      [],
+    )
+    expect(msg).toContain('UNKNOWN_SCHEME')
   })
 })

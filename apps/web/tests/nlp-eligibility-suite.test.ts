@@ -267,7 +267,7 @@ describe('pickNextQuestion — greedy fallback', () => {
     const q = pickNextQuestion(
       ['has_disability', 'is_carer'],
       {
-        is_australian_resident: true, age: 30, employment_status: 'employed',
+        is_australian_resident: true, age: 30, employment_status: 'full_time',
         state: 'NSW', tenure_type: 'renting',
       },
       [],
@@ -411,7 +411,7 @@ describe('Boundary — JobSeeker eligible ↔ ineligible by employment_status', 
     const r = transformToResults(
       { eligible: [], needs_info: [], ineligible: ['JOBSEEKER'] },
       SCHEMES,
-      { is_australian_resident: true, age: 35, employment_status: 'employed', annual_income: 60000 },
+      { is_australian_resident: true, age: 35, employment_status: 'full_time', annual_income: 60000 },
     )
     expect(r.programs).toHaveLength(0)
   })
