@@ -107,6 +107,13 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [discoveryDone, setDiscoveryDone] = useState(false)
   // Guards against double-fire from concurrent click + animation-complete callback.
   const assessmentTriggeredRef = useRef(false)
+  // Discovery animation plays once per session — subsequent unlocks skip it.
+  const hasShownDiscoveryRef = useRef(false)
+  // Tracks eligible count so we can detect new scheme additions silently.
+  const prevEligibleCountRef = useRef(0)
+  // Orb new-unlock glow: counter increments each time to force re-mount of the ring element.
+  const [unlockGlowKey, setUnlockGlowKey] = useState(0)
+  const [orbNewUnlock, setOrbNewUnlock] = useState(false)
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
@@ -354,8 +361,14 @@ export function ChatPage({ schemes }: ChatPageProps) {
   }
 
   const runAssessment = useCallback(async () => {
-    setStage('discovering')
-    setDiscoveryDone(false)
+    const firstTime = !hasShownDiscoveryRef.current
+    hasShownDiscoveryRef.current = true
+
+    if (firstTime) {
+      setStage('discovering')
+      setDiscoveryDone(false)
+    }
+
     try {
       const res = await fetch('/api/eligibility/assess', {
         method: 'POST',
@@ -368,11 +381,14 @@ export function ChatPage({ schemes }: ChatPageProps) {
       if (!res.ok) throw new Error(`assess ${res.status}`)
       const data = (await res.json()) as ResultsData
       setResults(data)
-      // Signal Discovery that all steps are done — it checks off all 5 ticks.
-      // Hold on the completed screen for 650ms so the user sees it, then
-      // the normal view-anim cross-fade carries them to Results.
-      setDiscoveryDone(true)
-      await new Promise<void>((r) => setTimeout(r, 650))
+
+      if (firstTime) {
+        // Signal Discovery that all steps are done — it checks off all 5 ticks.
+        // Hold on the completed screen for 650ms so the user sees it, then
+        // the normal view-anim cross-fade carries them to Results.
+        setDiscoveryDone(true)
+        await new Promise<void>((r) => setTimeout(r, 650))
+      }
       setStage('results')
     } catch (err) {
       console.error('assessment failed', err)
@@ -380,9 +396,31 @@ export function ChatPage({ schemes }: ChatPageProps) {
         title: "Couldn't run assessment",
         message: 'Something went wrong while checking your eligibility. Please try again.',
       })
-      setStage('conversation')
+      if (firstTime) {
+        setStage('conversation')
+        hasShownDiscoveryRef.current = false
+      }
       assessmentTriggeredRef.current = false
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId])
+
+  // Silent results refresh — used when a new scheme is unlocked while results are
+  // already on screen. No stage transition; just updates the ResultsData in place.
+  const runSilentAssessment = useCallback(async () => {
+    try {
+      const res = await fetch('/api/eligibility/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: profileRef.current,
+          conversationId: conversationId ?? undefined,
+        }),
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as ResultsData
+      setResults(data)
+    } catch { /* non-fatal — results will still show previous data */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId])
 
@@ -441,6 +479,29 @@ export function ChatPage({ schemes }: ChatPageProps) {
   useEffect(() => {
     if (!meterState.eligible) assessmentTriggeredRef.current = false
   }, [meterState.eligible])
+
+  // Detect a new scheme being added while the user is already eligible.
+  // First eligibility is handled by the orb animation → triggerAssessment flow.
+  // Subsequent additions get a silent refresh + brief orb glow instead of Discovery.
+  const eligibleCount = eligibility?.eligible.length ?? 0
+  useEffect(() => {
+    const prev = prevEligibleCountRef.current
+    prevEligibleCountRef.current = eligibleCount
+    if (prev > 0 && eligibleCount > prev && hasShownDiscoveryRef.current) {
+      // New scheme added while already in eligible state — skip Discovery, just glow + refresh.
+      setUnlockGlowKey((k) => k + 1)
+      setOrbNewUnlock(true)
+      void runSilentAssessment()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligibleCount])
+
+  // Auto-clear the glow flag after the animation (700ms × 2 pulses + margin).
+  useEffect(() => {
+    if (!orbNewUnlock) return
+    const t = setTimeout(() => setOrbNewUnlock(false), 1600)
+    return () => clearTimeout(t)
+  }, [orbNewUnlock])
 
   const backButton = (
     <button
@@ -541,10 +602,16 @@ export function ChatPage({ schemes }: ChatPageProps) {
                 marginLeft: 16, zIndex: 5,
               }}>
                 <EligibilityOrb
+                  key={unlockGlowKey}
                   value={meterState.value}
                   eligible={meterState.eligible}
                   onClick={triggerAssessment}
-                  onEligibleAnimationComplete={triggerAssessment}
+                  onEligibleAnimationComplete={
+                    // Only auto-trigger via animation callback on the first eligibility unlock.
+                    // After discovery has been shown, the click itself handles navigation instantly.
+                    hasShownDiscoveryRef.current ? undefined : triggerAssessment
+                  }
+                  newUnlock={orbNewUnlock}
                   size={34}
                   accent="var(--accent)"
                 />

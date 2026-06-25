@@ -58,8 +58,16 @@ const CSS = `
 .eo-ready{position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:0 0 0 0 var(--eo-ring,rgba(59,191,122,.45));animation:eo-pulse 2.4s ease-out infinite;}
 @keyframes eo-pulse{0%{box-shadow:0 0 0 0 var(--eo-ring,rgba(59,191,122,.4))}70%,100%{box-shadow:0 0 0 9px rgba(59,191,122,0)}}
+.eo-unlock{position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
+  box-shadow:0 0 0 0 var(--eo-ring,rgba(59,191,122,.6));
+  animation:eo-unlock-burst 700ms ease-out 2;}
+@keyframes eo-unlock-burst{
+  0%{box-shadow:0 0 0 0 var(--eo-ring,rgba(59,191,122,.65));}
+  70%{box-shadow:0 0 0 14px rgba(59,191,122,0);}
+  100%{box-shadow:0 0 0 14px rgba(59,191,122,0);}
+}
 @media (prefers-reduced-motion: reduce){
-  .eo-wave{animation:none!important}.eo-ready{animation:none!important}
+  .eo-wave{animation:none!important}.eo-ready{animation:none!important}.eo-unlock{animation:none!important}
 }
 `
 
@@ -85,6 +93,11 @@ export interface EligibilityOrbProps {
   /** Fires only when eligible (click / Enter / Space). */
   onClick?: () => void
   /**
+   * When true, plays a double-burst glow ring to signal a new scheme unlocked
+   * while the orb is already in its eligible (green) state.
+   */
+  newUnlock?: boolean
+  /**
    * Fires once the full eligible animation sequence has completed:
    * fill (850ms) → green phase (920ms) → check fade-in (420ms) → dwell (400ms).
    * Use this to gate follow-up UI on the animation rather than a fixed timeout.
@@ -108,6 +121,7 @@ export default function EligibilityOrb({
   value = 0,
   eligible = false,
   onClick,
+  newUnlock = false,
   onEligibleAnimationComplete,
   size = 46,
   animated = true,
@@ -197,6 +211,7 @@ export default function EligibilityOrb({
         </svg>
       </div>
       {clickable && greenPhase && <span className="eo-ready" aria-hidden="true" />}
+      {newUnlock && <span className="eo-unlock" aria-hidden="true" />}
     </div>
   )
 
