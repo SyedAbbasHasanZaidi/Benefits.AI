@@ -364,6 +364,11 @@ export function ChatPage({ schemes }: ChatPageProps) {
     const firstTime = !hasShownDiscoveryRef.current
     hasShownDiscoveryRef.current = true
 
+    // Stamp the moment Discovery mounts so we can guarantee the full
+    // 5-step animation plays regardless of how fast the API responds.
+    // The last step-advance timer fires at 700ms × 4 = 2800ms.
+    const discoveryStart = firstTime ? Date.now() : 0
+
     if (firstTime) {
       setStage('discovering')
       setDiscoveryDone(false)
@@ -383,10 +388,14 @@ export function ChatPage({ schemes }: ChatPageProps) {
       setResults(data)
 
       if (firstTime) {
-        // Signal Discovery that all steps are done — it checks off all 5 ticks.
-        // Hold on the completed screen for 650ms so the user sees it, then
-        // the normal view-anim cross-fade carries them to Results.
+        // Wait until the animation's last step-advance has fired (2800ms from mount),
+        // then signal done and hold so the user sees all 5 ticks before moving on.
+        const LAST_STEP_MS = 700 * 4  // 4 timers for 5 steps
+        const elapsed = Date.now() - discoveryStart
+        const remaining = Math.max(0, LAST_STEP_MS - elapsed)
+        if (remaining > 0) await new Promise<void>((r) => setTimeout(r, remaining))
         setDiscoveryDone(true)
+        // Hold with all ticks checked so the user registers the completion.
         await new Promise<void>((r) => setTimeout(r, 650))
       }
       setStage('results')
