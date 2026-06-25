@@ -34,10 +34,10 @@ const CSS = `
   border:1.5px solid var(--eo-border,rgba(20,24,33,.14));
   box-shadow:inset 0 1px 1px rgba(255,255,255,.5);}
 .eo-water{position:absolute;inset:0;
-  transition:clip-path 850ms cubic-bezier(.22,.61,.36,1),background 450ms ease;
+  transition:clip-path 1800ms cubic-bezier(.22,.61,.36,1),background 450ms ease;
   background:linear-gradient(180deg,var(--eo-hi) 0%,var(--eo-base) 68%);}
 .eo-surface{position:absolute;left:0;width:200%;pointer-events:none;
-  transition:bottom 850ms cubic-bezier(.22,.61,.36,1),opacity 300ms ease;}
+  transition:bottom 1800ms cubic-bezier(.22,.61,.36,1),opacity 300ms ease;}
 .eo-wave{position:absolute;left:0;top:0;width:100%;height:100%;fill:var(--eo-hi);
   transition:fill 450ms ease;}
 .eo-wave-back{opacity:.5;animation:eo-wave-x 6s linear infinite;}
@@ -144,16 +144,16 @@ export default function EligibilityOrb({
 
   useEffect(() => {
     if (eligible && !prevEligibleRef.current) {
-      // Phase 1 — keep accent color while fill animates to 100% (850ms clip-path)
+      // Phase 1 — keep accent color while fill animates to 100% (1800ms clip-path)
       setGreenPhase(false)
       prevEligibleRef.current = true
 
       // Phase 2 — switch to green after fill is visually complete
-      const t1 = setTimeout(() => setGreenPhase(true), 920)
+      const t1 = setTimeout(() => setGreenPhase(true), 1900)
 
       // Phase 3 — fire completion after green + check fade-in (420ms) + 400ms dwell
-      // Total: 920 + 420 + 400 = 1740ms from eligible becoming true.
-      const t2 = setTimeout(() => onCompleteRef.current?.(), 1740)
+      // Total: 1900 + 420 + 400 = 2720ms from eligible becoming true.
+      const t2 = setTimeout(() => onCompleteRef.current?.(), 2720)
 
       return () => { clearTimeout(t1); clearTimeout(t2) }
     }

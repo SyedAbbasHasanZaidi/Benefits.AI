@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -64,19 +64,27 @@ interface DiscoveryProps {
  */
 export function Discovery({ done }: DiscoveryProps) {
   const [active, setActive] = useState(0)
+  // Hold refs to pending timers so we can cancel them when done fires.
+  // Without this, the last step-advance timer (700ms × 4 = 2800ms) can fire
+  // a few ms after setDiscoveryDone(true) and overwrite active back to 4,
+  // causing the final tick to flash done → spinning → done.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  // Cosmetic step progression — 700ms per step, holds at last step until `done`
   useEffect(() => {
     const per = 700
-    const timers = DISCOVERY_STEPS.slice(0, -1).map((_, i) =>
+    timersRef.current = DISCOVERY_STEPS.slice(0, -1).map((_, i) =>
       setTimeout(() => setActive(i + 1), per * (i + 1)),
     )
-    return () => { timers.forEach(clearTimeout) }
+    return () => { timersRef.current.forEach(clearTimeout) }
   }, [])
 
-  // When the assessment promise resolves, mark all steps done
+  // When the assessment resolves, cancel any pending step timers before
+  // marking all steps done — prevents the race described above.
   useEffect(() => {
-    if (done) setActive(DISCOVERY_STEPS.length)
+    if (done) {
+      timersRef.current.forEach(clearTimeout)
+      setActive(DISCOVERY_STEPS.length)
+    }
   }, [done])
 
   return (
