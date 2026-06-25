@@ -84,6 +84,12 @@ export interface EligibilityOrbProps {
   eligible?: boolean
   /** Fires only when eligible (click / Enter / Space). */
   onClick?: () => void
+  /**
+   * Fires once the full eligible animation sequence has completed:
+   * fill (850ms) → green phase (920ms) → check fade-in (420ms) → dwell (400ms).
+   * Use this to gate follow-up UI on the animation rather than a fixed timeout.
+   */
+  onEligibleAnimationComplete?: () => void
   /** Diameter in px. Size via this prop — NOT external CSS. */
   size?: number
   /** Fluid fill + ripple. Respects prefers-reduced-motion. */
@@ -102,6 +108,7 @@ export default function EligibilityOrb({
   value = 0,
   eligible = false,
   onClick,
+  onEligibleAnimationComplete,
   size = 46,
   animated = true,
   accent = '#4f73c4',
@@ -117,14 +124,24 @@ export default function EligibilityOrb({
   // simultaneously and the water snaps green before it's full.
   const prevEligibleRef = useRef(eligible)
   const [greenPhase, setGreenPhase] = useState(eligible)
+  // Stable ref so the completion callback never causes a re-register.
+  const onCompleteRef = useRef(onEligibleAnimationComplete)
+  onCompleteRef.current = onEligibleAnimationComplete
 
   useEffect(() => {
     if (eligible && !prevEligibleRef.current) {
-      // Just became eligible — keep accent color while fill animates up
+      // Phase 1 — keep accent color while fill animates to 100% (850ms clip-path)
       setGreenPhase(false)
-      const t = setTimeout(() => setGreenPhase(true), 920)
       prevEligibleRef.current = true
-      return () => clearTimeout(t)
+
+      // Phase 2 — switch to green after fill is visually complete
+      const t1 = setTimeout(() => setGreenPhase(true), 920)
+
+      // Phase 3 — fire completion after green + check fade-in (420ms) + 400ms dwell
+      // Total: 920 + 420 + 400 = 1740ms from eligible becoming true.
+      const t2 = setTimeout(() => onCompleteRef.current?.(), 1740)
+
+      return () => { clearTimeout(t1); clearTimeout(t2) }
     }
     if (!eligible) {
       prevEligibleRef.current = false

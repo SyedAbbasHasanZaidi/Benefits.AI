@@ -105,6 +105,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [displayStage, setDisplayStage] = useState<Stage>('conversation')
   const [leaving, setLeaving] = useState(false)
   const [discoveryDone, setDiscoveryDone] = useState(false)
+  // Guards against double-fire from concurrent click + animation-complete callback.
+  const assessmentTriggeredRef = useRef(false)
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
@@ -351,11 +353,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
     if (!voiceOn) addToast({ title: 'Listening…', message: 'Voice input is a demo in this preview.' })
   }
 
-  /**
-   * Run the eligibility assessment — moves stage: conversation → discovering → results.
-   * The Discovery loader stays up until the /api/eligibility/assess promise resolves.
-   * On failure, falls back to conversation with a danger toast (per design contract).
-   */
   const runAssessment = useCallback(async () => {
     setStage('discovering')
     setDiscoveryDone(false)
@@ -384,9 +381,19 @@ export function ChatPage({ schemes }: ChatPageProps) {
         message: 'Something went wrong while checking your eligibility. Please try again.',
       })
       setStage('conversation')
+      assessmentTriggeredRef.current = false
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId])
+
+  // Guards against double-fire: both the orb's animation-complete callback and a
+  // user click can call this. Only the first call proceeds; subsequent calls are no-ops.
+  // The guard resets whenever eligibility is lost (see meterState effect below).
+  const triggerAssessment = useCallback(() => {
+    if (assessmentTriggeredRef.current) return
+    assessmentTriggeredRef.current = true
+    void runAssessment()
+  }, [runAssessment])
 
   function restartAssessment() {
     localStorage.removeItem(SESSION_KEY)
@@ -429,6 +436,11 @@ export function ChatPage({ schemes }: ChatPageProps) {
     return { value: best, eligible: false, show: true }
   })()
   const showMeter = stage === 'conversation' && meterState.show
+
+  // Reset the double-fire guard whenever eligibility is lost (e.g. restartAssessment).
+  useEffect(() => {
+    if (!meterState.eligible) assessmentTriggeredRef.current = false
+  }, [meterState.eligible])
 
   const backButton = (
     <button
@@ -531,7 +543,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
                 <EligibilityOrb
                   value={meterState.value}
                   eligible={meterState.eligible}
-                  onClick={runAssessment}
+                  onClick={triggerAssessment}
+                  onEligibleAnimationComplete={triggerAssessment}
                   size={34}
                   accent="var(--accent)"
                 />
