@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Message } from 'ai'
+import { AnimatePresence, motion } from 'framer-motion'
 import { GuidanceCard } from './GuidanceCard'
 import { MessageBubble } from './MessageBubble'
 import { QuickReplyChips } from './QuickReplyChips'
 import ThinkingIndicator from './ThinkingIndicator'
+import { DURATION, EASE } from '@/lib/animations'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
 
 interface MessageListProps {
@@ -209,12 +211,21 @@ export function MessageList({
           )
         })}
 
-        {showThinking && (
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <AssistantMark />
-            <ThinkingIndicator color="var(--accent)" />
-          </div>
-        )}
+        <AnimatePresence>
+          {showThinking && (
+            <motion.div
+              key="thinking"
+              style={{ display: 'flex', gap: 14, alignItems: 'center' }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: DURATION.base, ease: EASE.standard }}
+            >
+              <AssistantMark />
+              <ThinkingIndicator color="var(--accent)" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div ref={bottomRef} />
       </div>

@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { DURATION, EASE, variants } from '@/lib/animations'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -84,7 +86,13 @@ export const MessageBubble = React.memo(function MessageBubble({ role, content, 
 
   if (role === 'user') {
     return (
-      <div style={{ alignSelf: 'flex-end', maxWidth: '82%' }}>
+      <motion.div
+        style={{ alignSelf: 'flex-end', maxWidth: '82%' }}
+        variants={variants.fadeUp}
+        initial="hidden"
+        animate="visible"
+        transition={{ duration: DURATION.base, ease: EASE.standard }}
+      >
         <div style={{
           background: 'var(--accent-tint)', color: 'var(--text)',
           border: '1px solid color-mix(in srgb, var(--accent) 16%, transparent)',
@@ -93,12 +101,18 @@ export const MessageBubble = React.memo(function MessageBubble({ role, content, 
         }}>
           {content}
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+    <motion.div
+      style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}
+      variants={variants.fadeUp}
+      initial="hidden"
+      animate="visible"
+      transition={{ duration: DURATION.base, ease: EASE.standard }}
+    >
       <AssistantMark />
       <div style={{
         paddingTop: 3, fontSize: 15.5, lineHeight: 1.62,
@@ -107,6 +121,6 @@ export const MessageBubble = React.memo(function MessageBubble({ role, content, 
         {rendered}
         {streaming && <span className="caret" />}
       </div>
-    </div>
+    </motion.div>
   )
 })
