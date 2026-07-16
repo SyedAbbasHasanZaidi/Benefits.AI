@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ModalWrapper } from './ModalWrapper'
+import { AnimatePresence, motion } from 'framer-motion'
+import { DURATION } from '@/lib/animations'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -112,7 +114,7 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
             </div>
 
             {/* Google */}
-            <button
+            <motion.button
               onClick={handleGoogle}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -122,12 +124,13 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
                 cursor: 'pointer', transition: 'background 140ms ease',
                 marginBottom: 16,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface)')}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
               <GoogleIcon />
               Continue with Google
-            </button>
+            </motion.button>
 
             {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -163,14 +166,48 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
               {error && (
                 <p style={{ margin: 0, fontSize: 12.5, color: '#b4452f' }}>{error}</p>
               )}
-              <button
+              <motion.button
                 type="submit"
                 disabled={step === 'loading' || !email.trim()}
                 className="modal-btn primary"
-                style={{ width: '100%', opacity: step === 'loading' ? 0.7 : 1 }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                whileHover={step !== 'loading' ? { scale: 1.02, y: -1 } : {}}
+                whileTap={step !== 'loading' ? { scale: 0.97 } : {}}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               >
-                {step === 'loading' ? 'Sending…' : 'Send sign-in link'}
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  {step === 'loading' ? (
+                    <motion.span
+                      key="spinner"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: DURATION.fast }}
+                    >
+                      <span style={{
+                        width: 14, height: 14,
+                        border: '2px solid rgba(255,255,255,0.35)',
+                        borderTopColor: 'white',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: 'spin 0.7s linear infinite',
+                      }} />
+                      Sending…
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="label"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: DURATION.fast }}
+                    >
+                      Send sign-in link
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             </form>
 
             <p style={{ margin: '16px 0 0', fontSize: 12, color: 'var(--faint)', textAlign: 'center', lineHeight: 1.5 }}>
