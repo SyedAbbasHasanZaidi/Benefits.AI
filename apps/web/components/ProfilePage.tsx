@@ -8,6 +8,7 @@ import { SignInModal } from './SignInModal'
 import { ModalWrapper } from './ModalWrapper'
 import { useToasts, ToastStack } from './AppHeader'
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/profile/types'
+import { useProfileCache } from '@/lib/profile/context'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DURATION, EASE } from '@/lib/animations'
 import { SkeletonBlock, SkeletonText } from './Skeleton'
@@ -383,6 +384,7 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 export function ProfilePage() {
   const router = useRouter()
   const { user, isLoading: authLoading } = useAuth()
+  const { cache, setCache } = useProfileCache()
   const { toasts, addToast, dismiss } = useToasts()
 
   const [signInOpen, setSignInOpen] = useState(false)
@@ -404,11 +406,19 @@ export function ProfilePage() {
   useEffect(() => {
     if (authLoading) return
     if (!user) { setLoaded(true); return }
+
+    if (cache.data) {
+      setForm(fromDb(cache.data))
+      setLoaded(true)
+      return
+    }
+
     void (async () => {
       try {
         const res = await fetch('/api/profile')
         if (!res.ok) throw new Error(`profile GET ${res.status}`)
         const data = (await res.json()) as UserProfile
+        setCache(data)
         setForm(fromDb(data))
       } catch (err) {
         console.error('profile load failed', err)
@@ -418,7 +428,7 @@ export function ProfilePage() {
       }
     })()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading])
+  }, [user, authLoading, cache.data])
 
   // ── Scroll to section from URL hash ────────────────────────────────────────
   useEffect(() => {

@@ -118,6 +118,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
   const [chatsLoading, setChatsLoading] = useState(true)
+  const chatsFetchedAtRef = useRef<number>(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
   const lastPersistedRef = useRef<Set<string>>(new Set())
@@ -229,12 +230,16 @@ export function ChatPage({ schemes }: ChatPageProps) {
   // ── Load conversation list for sidebar (logged-in users only) ──────────────
   useEffect(() => {
     if (!user || authLoading) return
+    const AGE_LIMIT = 30_000
+    if (chats.length > 0 && Date.now() - chatsFetchedAtRef.current < AGE_LIMIT) return
+
     void (async () => {
       try {
         const res = await fetch('/api/conversations')
         if (!res.ok) return
         const list = (await res.json()) as ConversationSummary[]
         setChats(list.map((c) => ({ id: c.id, title: c.title, ts: c.ts, status: c.status })))
+        chatsFetchedAtRef.current = Date.now()
       } catch (err) {
         console.error('load conversations failed', err)
       } finally {

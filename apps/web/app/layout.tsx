@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Hanken_Grotesk } from 'next/font/google'
 import { MotionConfig } from 'framer-motion'
 import { AuthProvider } from '@/lib/auth/context'
+import { ProfileProvider } from '@/lib/profile/context'
 import './globals.css'
 
 const hanken = Hanken_Grotesk({
@@ -21,7 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={hanken.variable}>
       <body className="antialiased" style={{ fontFamily: 'var(--font-hanken, "Hanken Grotesk", sans-serif)' }}>
         <MotionConfig reducedMotion="user">
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <ProfileProvider>
+              {children}
+            </ProfileProvider>
+          </AuthProvider>
         </MotionConfig>
       </body>
     </html>
