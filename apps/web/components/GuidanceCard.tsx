@@ -1,5 +1,7 @@
 'use client'
 
+import { motion } from 'framer-motion'
+import { DURATION, EASE } from '@/lib/animations'
 import type { VariableGuidance } from '@/lib/orchestrator/guidance'
 
 interface GuidanceCardProps {
@@ -9,12 +11,18 @@ interface GuidanceCardProps {
 
 export function GuidanceCard({ guidance, onDismiss }: GuidanceCardProps) {
   return (
-    <div style={{
-      marginLeft: 44, maxWidth: 560,
-      background: 'var(--accent-tint)',
-      border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
-      borderRadius: 14, padding: 18,
-    }}>
+    <motion.div
+      style={{
+        marginLeft: 44, maxWidth: 560,
+        background: 'var(--accent-tint)',
+        border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+        borderRadius: 14, padding: 18,
+      }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: DURATION.base, ease: EASE.standard }}
+    >
       <p style={{ margin: '0 0 14px', fontSize: 14, lineHeight: 1.55, color: 'var(--text)' }}>
         {guidance.explanation}
       </p>
@@ -54,6 +62,6 @@ export function GuidanceCard({ guidance, onDismiss }: GuidanceCardProps) {
       >
         Got it — I&apos;ll answer now
       </button>
-    </div>
+    </motion.div>
   )
 }

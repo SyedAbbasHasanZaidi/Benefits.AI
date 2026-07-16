@@ -201,11 +201,13 @@ export function MessageList({
                 streaming={isLast && (isLoading || stillRevealing)}
               />
               {isLast && chipsVisible && (
-                showGuidance && guidance ? (
-                  <GuidanceCard guidance={guidance} onDismiss={onDismissGuidance} />
-                ) : (
-                  <QuickReplyChips chips={chips} onChipClick={onChipClick} />
-                )
+                <AnimatePresence mode="wait">
+                  {showGuidance && guidance ? (
+                    <GuidanceCard key="guidance" guidance={guidance} onDismiss={onDismissGuidance} />
+                  ) : (
+                    <QuickReplyChips key="chips" chips={chips} onChipClick={onChipClick} />
+                  )}
+                </AnimatePresence>
               )}
             </div>
           )
