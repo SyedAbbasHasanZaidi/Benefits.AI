@@ -8,6 +8,9 @@ import { SignInModal } from './SignInModal'
 import { ModalWrapper } from './ModalWrapper'
 import { useToasts, ToastStack } from './AppHeader'
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/profile/types'
+import { AnimatePresence, motion } from 'framer-motion'
+import { DURATION, EASE } from '@/lib/animations'
+import { SkeletonBlock, SkeletonText } from './Skeleton'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -347,6 +350,32 @@ function DeleteConfirm({ onClose, onConfirm, busy }: {
   )
 }
 
+// ── Profile skeleton ─────────────────────────────────────────────────────────
+
+function ProfileSkeleton() {
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 26px' }}>
+      {[0, 1, 2, 3].map((section) => (
+        <div key={section} style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 16, padding: '22px 24px', marginBottom: 14,
+          boxShadow: 'var(--shadow-sm)',
+        }}>
+          <SkeletonText width="38%" style={{ height: 16, marginBottom: 20 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <SkeletonBlock height={42} />
+            <SkeletonBlock height={42} />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <SkeletonBlock height={42} style={{ flex: 1 }} />
+              <SkeletonBlock height={42} style={{ flex: 1 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -509,89 +538,109 @@ export function ProfilePage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <AnimatePresence mode="wait" initial={false}>
+            {!loaded ? (
+              <motion.div
+                key="skeleton"
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: DURATION.base, ease: EASE.standard }}
+              >
+                <ProfileSkeleton />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: DURATION.base, ease: EASE.standard }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-            <Section id="profile" icon="User" title="Personal information" subtitle="Helps us greet you and tailor language.">
-              <div style={grid2}>
-                <Field label="Full name">
-                  <TextInput value={form.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="e.g. Jordan Nguyen" />
-                </Field>
-                <Field label="Preferred name" hint="What we'll call you in conversation.">
-                  <TextInput value={form.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="e.g. Jordan" />
-                </Field>
-                <Field label="Date of birth">
-                  <TextInput type="date" value={form.dob} onChange={(e) => set('dob', e.target.value)} />
-                </Field>
-                <Field label="Preferred language">
-                  <Select value={form.language} onChange={(v) => set('language', v)} options={LANGUAGES} />
-                </Field>
-              </div>
-            </Section>
+                  <Section id="profile" icon="User" title="Personal information" subtitle="Helps us greet you and tailor language.">
+                    <div style={grid2}>
+                      <Field label="Full name">
+                        <TextInput value={form.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="e.g. Jordan Nguyen" />
+                      </Field>
+                      <Field label="Preferred name" hint="What we'll call you in conversation.">
+                        <TextInput value={form.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="e.g. Jordan" />
+                      </Field>
+                      <Field label="Date of birth">
+                        <TextInput type="date" value={form.dob} onChange={(e) => set('dob', e.target.value)} />
+                      </Field>
+                      <Field label="Preferred language">
+                        <Select value={form.language} onChange={(v) => set('language', v)} options={LANGUAGES} />
+                      </Field>
+                    </div>
+                  </Section>
 
-            <Section icon="Users" title="Household" subtitle="Many programs depend on who you live with.">
-              <div style={grid2}>
-                <Field label="Relationship status">
-                  <Select value={form.relationship} onChange={(v) => set('relationship', v)} placeholder="Select…" options={RELATIONSHIPS} />
-                </Field>
-                <Field label="Number of dependents">
-                  <Stepper value={form.dependents} onChange={(v) => set('dependents', v)} />
-                </Field>
-                <Field label="Living arrangement">
-                  <Select value={form.living} onChange={(v) => set('living', v)} placeholder="Select…" options={LIVING} />
-                </Field>
-                <Field label="State / territory">
-                  <Select value={form.state} onChange={(v) => set('state', v)} placeholder="Select…" options={AU_STATES} />
-                </Field>
-              </div>
-            </Section>
+                  <Section icon="Users" title="Household" subtitle="Many programs depend on who you live with.">
+                    <div style={grid2}>
+                      <Field label="Relationship status">
+                        <Select value={form.relationship} onChange={(v) => set('relationship', v)} placeholder="Select…" options={RELATIONSHIPS} />
+                      </Field>
+                      <Field label="Number of dependents">
+                        <Stepper value={form.dependents} onChange={(v) => set('dependents', v)} />
+                      </Field>
+                      <Field label="Living arrangement">
+                        <Select value={form.living} onChange={(v) => set('living', v)} placeholder="Select…" options={LIVING} />
+                      </Field>
+                      <Field label="State / territory">
+                        <Select value={form.state} onChange={(v) => set('state', v)} placeholder="Select…" options={AU_STATES} />
+                      </Field>
+                    </div>
+                  </Section>
 
-            <Section icon="Briefcase" title="Employment" subtitle="Used to check work-related payments and concessions.">
-              <div style={grid2}>
-                <Field label="Employment status">
-                  <Select value={form.employment} onChange={(v) => set('employment', v)} placeholder="Select…" options={EMPLOYMENT} />
-                </Field>
-                <Field label="Occupation">
-                  <TextInput value={form.occupation} onChange={(e) => set('occupation', e.target.value)} placeholder="e.g. Carer, Nurse, Student" />
-                </Field>
-                <Field label="Study status">
-                  <Select value={form.study} onChange={(v) => set('study', v)} placeholder="Select…" options={STUDY} />
-                </Field>
-              </div>
-            </Section>
+                  <Section icon="Briefcase" title="Employment" subtitle="Used to check work-related payments and concessions.">
+                    <div style={grid2}>
+                      <Field label="Employment status">
+                        <Select value={form.employment} onChange={(v) => set('employment', v)} placeholder="Select…" options={EMPLOYMENT} />
+                      </Field>
+                      <Field label="Occupation">
+                        <TextInput value={form.occupation} onChange={(e) => set('occupation', e.target.value)} placeholder="e.g. Carer, Nurse, Student" />
+                      </Field>
+                      <Field label="Study status">
+                        <Select value={form.study} onChange={(v) => set('study', v)} placeholder="Select…" options={STUDY} />
+                      </Field>
+                    </div>
+                  </Section>
 
-            <Section id="notifications" icon="Bell" title="Communication preferences" subtitle="Choose what you hear about, and how often.">
-              <ToggleRow icon="User" title="Email notifications" desc="Account and security messages." on={form.emailNotif} onChange={(v) => set('emailNotif', v)} />
-              <ToggleRow icon="Gauge" title="Assessment updates" desc="When new programs match your situation." on={form.assessmentUpd} onChange={(v) => set('assessmentUpd', v)} />
-              <ToggleRow icon="Shield" title="Government program alerts" desc="Changes to programs you may be eligible for." on={form.programAlerts} onChange={(v) => set('programAlerts', v)} />
-            </Section>
+                  <Section id="notifications" icon="Bell" title="Communication preferences" subtitle="Choose what you hear about, and how often.">
+                    <ToggleRow icon="User" title="Email notifications" desc="Account and security messages." on={form.emailNotif} onChange={(v) => set('emailNotif', v)} />
+                    <ToggleRow icon="Gauge" title="Assessment updates" desc="When new programs match your situation." on={form.assessmentUpd} onChange={(v) => set('assessmentUpd', v)} />
+                    <ToggleRow icon="Shield" title="Government program alerts" desc="Changes to programs you may be eligible for." on={form.programAlerts} onChange={(v) => set('programAlerts', v)} />
+                  </Section>
 
-            <Section id="privacy" icon="Lock" title="Privacy & data" subtitle="You're in control of your information.">
-              <ToggleRow icon="Sparkle" title="Use my data to improve recommendations" desc="Lets Benefits.AI personalise your matches. Never sold or shared." on={form.improveData} onChange={(v) => set('improveData', v)} />
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-                <button
-                  type="button"
-                  className="pf-action"
-                  style={actionBtn}
-                  onClick={user ? exportData : () => setSignInOpen(true)}
-                  disabled={!user}
-                  title={user ? 'Email a copy of your data' : 'Sign in required'}
-                >
-                  <Icon.Download size={17} /> Export my data
-                </button>
-                <button
-                  type="button"
-                  className="pf-action danger"
-                  style={{ ...actionBtn, color: '#b4452f', borderColor: 'color-mix(in srgb, #b4452f 28%, var(--border-strong))' }}
-                  onClick={user ? () => setDeleteOpen(true) : () => setSignInOpen(true)}
-                  disabled={!user}
-                  title={user ? 'Permanently delete your account' : 'Sign in required'}
-                >
-                  <Icon.Trash size={17} /> Delete account
-                </button>
-              </div>
-            </Section>
+                  <Section id="privacy" icon="Lock" title="Privacy & data" subtitle="You're in control of your information.">
+                    <ToggleRow icon="Sparkle" title="Use my data to improve recommendations" desc="Lets Benefits.AI personalise your matches. Never sold or shared." on={form.improveData} onChange={(v) => set('improveData', v)} />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+                      <button
+                        type="button"
+                        className="pf-action"
+                        style={actionBtn}
+                        onClick={user ? exportData : () => setSignInOpen(true)}
+                        disabled={!user}
+                        title={user ? 'Email a copy of your data' : 'Sign in required'}
+                      >
+                        <Icon.Download size={17} /> Export my data
+                      </button>
+                      <button
+                        type="button"
+                        className="pf-action danger"
+                        style={{ ...actionBtn, color: '#b4452f', borderColor: 'color-mix(in srgb, #b4452f 28%, var(--border-strong))' }}
+                        onClick={user ? () => setDeleteOpen(true) : () => setSignInOpen(true)}
+                        disabled={!user}
+                        title={user ? 'Permanently delete your account' : 'Sign in required'}
+                      >
+                        <Icon.Trash size={17} /> Delete account
+                      </button>
+                    </div>
+                  </Section>
 
-          </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
