@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { SkeletonAvatar } from './Skeleton'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,9 +72,10 @@ interface ChatHistoryProps {
   activeId: string | null
   onSelect: (c: ChatItem) => void
   onNew: () => void
+  isLoading?: boolean
 }
 
-export function ChatHistory({ open, onToggle, chats, activeId, onSelect, onNew }: ChatHistoryProps) {
+export function ChatHistory({ open, onToggle, chats, activeId, onSelect, onNew, isLoading }: ChatHistoryProps) {
   const groups = groupChats(chats)
 
   return (
@@ -106,11 +108,17 @@ export function ChatHistory({ open, onToggle, chats, activeId, onSelect, onNew }
         </div>
 
         <div className="hist-scroll">
-          {groups.length === 0 && (
+          {isLoading && chats.length === 0 ? (
+            <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[...Array(4)].map((_, i) => (
+                <SkeletonAvatar key={i} size={28} />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
             <div style={{ padding: '30px 18px', textAlign: 'center', fontSize: 13.5, color: 'var(--faint)', lineHeight: 1.5 }}>
               No conversations yet. Start by telling us your situation.
             </div>
-          )}
+          ) : null}
           {groups.map((g) => (
             <div key={g.label} style={{ marginBottom: 14 }}>
               <div className="hist-group-label">{g.label}</div>

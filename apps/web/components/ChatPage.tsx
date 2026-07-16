@@ -117,6 +117,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [results, setResults] = useState<ResultsData | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [chats, setChats] = useState<ChatItem[]>([])
+  const [chatsLoading, setChatsLoading] = useState(true)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const initialSentRef = useRef(false)
   const lastPersistedRef = useRef<Set<string>>(new Set())
@@ -236,6 +237,8 @@ export function ChatPage({ schemes }: ChatPageProps) {
         setChats(list.map((c) => ({ id: c.id, title: c.title, ts: c.ts, status: c.status })))
       } catch (err) {
         console.error('load conversations failed', err)
+      } finally {
+        setChatsLoading(false)
       }
     })()
   }, [user, authLoading, conversationId, results])
@@ -663,6 +666,7 @@ export function ChatPage({ schemes }: ChatPageProps) {
           activeId={conversationId}
           onSelect={openConversation}
           onNew={() => { setHistOpen(false); restartAssessment() }}
+          isLoading={chatsLoading}
         />
       )}
 
