@@ -187,23 +187,48 @@ function ProgramModal({ program, onClose, onRefineProfile }: {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             {isInfo ? (
               <>
-                <button className="modal-btn ghost" onClick={handleClose}>Close</button>
-                <button className="modal-btn primary" onClick={() => { handleClose(); onRefineProfile() }}>
+                <motion.button
+                  className="modal-btn ghost"
+                  onClick={handleClose}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  Close
+                </motion.button>
+                <motion.button
+                  className="modal-btn primary"
+                  onClick={() => { handleClose(); onRefineProfile() }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
                   Refine in profile
-                </button>
+                </motion.button>
               </>
             ) : (
               <>
-                <button className="modal-btn ghost" onClick={handleClose}>Close</button>
-                <a
+                <motion.button
+                  className="modal-btn ghost"
+                  onClick={handleClose}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  Close
+                </motion.button>
+                <motion.a
                   href={program.claimUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="modal-btn primary"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
                   Go to official claim site
-                </a>
+                </motion.a>
               </>
             )}
           </div>
@@ -248,7 +273,7 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '14px 20px', flexShrink: 0, background: 'transparent',
       }}>
-        <button
+        <motion.button
           onClick={handleBack}
           aria-label="Back to chat"
           className="menu-trigger"
@@ -256,17 +281,27 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
             width: 38, height: 38, borderRadius: 11, border: 'none', background: 'transparent',
             color: 'var(--text-soft)', display: 'grid', placeItems: 'center', cursor: 'pointer',
           }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.93 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
         >
           <ChevronLeft size={19} />
-        </button>
-        <button onClick={onRestart} className="new-chat-btn" style={{
-          display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)',
-          border: '1px solid var(--border-strong)', color: 'var(--text-soft)',
-          padding: '8px 14px', borderRadius: 10, fontSize: 13.5, fontWeight: 500,
-          boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-body)',
-        }}>
+        </motion.button>
+        <motion.button
+          onClick={onRestart}
+          className="new-chat-btn"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)',
+            border: '1px solid var(--border-strong)', color: 'var(--text-soft)',
+            padding: '8px 14px', borderRadius: 10, fontSize: 13.5, fontWeight: 500,
+            boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-body)',
+          }}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        >
           <Icon.Plus size={15} /> New assessment
-        </button>
+        </motion.button>
       </header>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth/context'
 import { AppHeader, useToasts, ToastStack } from './AppHeader'
 import { ChatHistory } from './ChatHistory'
@@ -71,6 +72,7 @@ export function LandingPage() {
   // conversation starts fresh instead of restoring the previous one.
   useEffect(() => {
     localStorage.removeItem('benefits_chat_state')
+    router.prefetch('/chat')
   }, [])
 
   const [input, setInput] = useState('')
@@ -250,11 +252,15 @@ export function LandingPage() {
                     <span /><span /><span /><span /><span />
                   </span>
                 </button>
-                <button type="button" onClick={handleSubmit} disabled={!input.trim()}
+                <motion.button type="button" onClick={handleSubmit} disabled={!input.trim()}
                   aria-label="Send" className="send-btn"
-                  style={{ color: input.trim() ? 'var(--accent)' : 'var(--faint)' }}>
+                  style={{ color: input.trim() ? 'var(--accent)' : 'var(--faint)' }}
+                  whileHover={input.trim() ? { scale: 1.08 } : {}}
+                  whileTap={input.trim() ? { scale: 0.93 } : {}}
+                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                >
                   <Icon.Send size={20} />
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>

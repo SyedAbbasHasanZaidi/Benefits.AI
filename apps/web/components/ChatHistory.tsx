@@ -1,5 +1,7 @@
 'use client'
 
+import { motion } from 'framer-motion'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ChatItem {
@@ -115,10 +117,11 @@ export function ChatHistory({ open, onToggle, chats, activeId, onSelect, onNew }
               {g.items.map((c) => {
                 const active = c.id === activeId
                 return (
-                  <button
+                  <motion.button
                     key={c.id}
                     className={`hist-item${active ? ' active' : ''}`}
                     onClick={() => onSelect(c)}
+                    whileTap={{ scale: 0.98 }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                       <span className="hist-dot" style={{ background: c.status ? 'var(--accent)' : 'var(--border-strong)' }} />
@@ -128,7 +131,7 @@ export function ChatHistory({ open, onToggle, chats, activeId, onSelect, onNew }
                       <span>{relTime(c.ts)}</span>
                       {c.status && <span className="hist-status">{c.status}</span>}
                     </div>
-                  </button>
+                  </motion.button>
                 )
               })}
             </div>
