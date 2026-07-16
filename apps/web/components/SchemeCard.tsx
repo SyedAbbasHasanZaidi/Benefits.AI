@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 
 export interface SchemeMetadata {
   id: string
@@ -81,13 +82,13 @@ export function SchemeCard({
   }
 
   return (
-    <div className="res-card" style={{
+    <motion.div className="res-card" style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
       borderLeft: `4px solid ${accentColor}`, borderRadius: '0 12px 12px 0',
       padding: '14px 16px', boxShadow: 'var(--shadow-sm)',
       display: 'flex', flexDirection: 'column', gap: 12,
       transition: 'border-color 180ms ease, box-shadow 180ms ease',
-    }}>
+    }} whileTap={{ scale: 0.99 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
           <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--text)' }}>
@@ -183,6 +184,6 @@ export function SchemeCard({
           )}
         </>
       )}
-    </div>
+    </motion.div>
   )
 }

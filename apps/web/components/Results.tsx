@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { DURATION, EASE, variants } from '@/lib/animations'
 import type { Program, ResultsData } from '@/lib/eligibility/types'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -231,18 +233,12 @@ function ChevronLeft({ size = 19 }: { size?: number }) {
 
 export function Results({ data, onRestart, onBack }: ResultsProps) {
   const router = useRouter()
-  const [mounted, setMounted] = useState(false)
   const [openProgram, setOpenProgram] = useState<Program | null>(null)
 
   function handleBack() {
     if (onBack) onBack()
     else router.push('/')
   }
-
-  useEffect(() => {
-    const id = setTimeout(() => setMounted(true), 40)
-    return () => clearTimeout(id)
-  }, [])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -277,14 +273,17 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 26px 80px' }}>
 
           {/* Hero banner */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', borderRadius: 16,
-            background: 'var(--accent-tint)',
-            border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? 'none' : 'translateY(10px)',
-            transition: 'opacity 500ms ease, transform 500ms ease',
-          }}>
+          <motion.div
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', borderRadius: 16,
+              background: 'var(--accent-tint)',
+              border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+            }}
+            variants={variants.fadeUp}
+            initial="hidden"
+            animate="visible"
+            transition={{ duration: DURATION.slow, ease: EASE.standard }}
+          >
             <span style={{
               width: 40, height: 40, borderRadius: 12, flexShrink: 0,
               display: 'grid', placeItems: 'center',
@@ -301,7 +300,7 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
                 You may qualify for additional support — answer a few more questions to refine these.
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Stat tiles */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 16 }}>
@@ -319,15 +318,25 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
           </h3>
 
           {/* Program cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <motion.div
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            variants={variants.stagger}
+            initial="hidden"
+            animate="visible"
+          >
             {data.programs.map((pr, i) => (
-              <div key={(pr.schemeId ?? pr.name) + i} style={{
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 16, padding: '18px 20px', boxShadow: 'var(--shadow-sm)',
-                opacity: mounted ? 1 : 0,
-                transform: mounted ? 'none' : 'translateY(14px)',
-                transition: `opacity 480ms ease ${140 + i * 90}ms, transform 480ms ease ${140 + i * 90}ms, box-shadow 200ms ease, border-color 200ms ease`,
-              }}>
+              <motion.div
+                key={(pr.schemeId ?? pr.name) + i}
+                variants={variants.fadeUp}
+                transition={{ duration: DURATION.slow, ease: EASE.standard }}
+                whileTap={{ scale: 0.99 }}
+                style={{
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 16, padding: '18px 20px', boxShadow: 'var(--shadow-sm)',
+                  transition: 'box-shadow 200ms ease, border-color 200ms ease',
+                  cursor: 'default',
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -367,9 +376,9 @@ export function Results({ data, onRestart, onBack }: ResultsProps) {
                     <Icon.ArrowRight size={15} />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Disclaimer */}
           <p style={{
