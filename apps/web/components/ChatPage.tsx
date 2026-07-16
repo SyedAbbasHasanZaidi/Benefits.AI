@@ -18,6 +18,8 @@ import type { ResultsData } from '@/lib/eligibility/types'
 import type { ConversationSummary } from '@/lib/conversations/types'
 import type { ChatItem } from './ChatHistory'
 import type { SchemeMetadata } from './SchemeCard'
+import { AnimatePresence, motion } from 'framer-motion'
+import { DURATION, EASE } from '@/lib/animations'
 
 type Stage = 'conversation' | 'discovering' | 'results'
 
@@ -102,8 +104,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
   const [voiceOn, setVoiceOn] = useState(false)
   const [input, setInput] = useState('')
   const [stage, setStage] = useState<Stage>('conversation')
-  const [displayStage, setDisplayStage] = useState<Stage>('conversation')
-  const [leaving, setLeaving] = useState(false)
   const [discoveryDone, setDiscoveryDone] = useState(false)
   // Guards against double-fire from concurrent click + animation-complete callback.
   const assessmentTriggeredRef = useRef(false)
@@ -149,19 +149,6 @@ export function ChatPage({ schemes }: ChatPageProps) {
       saveSession({ messages, profile, chips, guidance, lastAskedVariable, eligibility, askedStreak, skippedAt })
     }
   }, [messages, profile, chips, guidance, lastAskedVariable, eligibility])
-
-  // ── Stage transition (fade/scale/blur out → swap → in) ────────────────────
-  // Mirrors the design's view-anim pattern so jumps between conversation,
-  // discovering, and results feel like one continuous workspace.
-  useEffect(() => {
-    if (stage === displayStage) return
-    setLeaving(true)
-    const t = setTimeout(() => {
-      setDisplayStage(stage)
-      setLeaving(false)
-    }, 260)
-    return () => clearTimeout(t)
-  }, [stage, displayStage])
 
   // ── Global Enter-to-send ───────────────────────────────────────────────────
   // When focus is anywhere on the page that isn't an interactive element
@@ -531,157 +518,143 @@ export function ChatPage({ schemes }: ChatPageProps) {
     </button>
   )
 
-  // Render Discovery / Results based on displayStage (lagged via view-anim)
-  if (displayStage === 'discovering') {
-    return (
-      <div className="chat-shell" style={{
-        display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
-        background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
-        color: 'var(--text)', fontFamily: 'var(--font-body)',
-      }}>
-        <AppHeader onToast={addToast} />
-        <div className={`view-anim${leaving ? ' leaving' : ''}`}>
-          <Discovery done={discoveryDone} />
-        </div>
-        <ToastStack toasts={toasts} onDismiss={dismiss} />
-      </div>
-    )
+  const shellStyle: React.CSSProperties = {
+    display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
+    background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
+    color: 'var(--text)', fontFamily: 'var(--font-body)',
   }
 
-  if (displayStage === 'results' && results) {
-    return (
-      <div className="chat-shell" style={{
-        display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
-        background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
-        color: 'var(--text)', fontFamily: 'var(--font-body)',
-      }}>
-        <div className={`view-anim${leaving ? ' leaving' : ''}`}>
-          <Results
-            data={results}
-            onRestart={restartAssessment}
-            onBack={() => setStage('conversation')}
-          />
-        </div>
-        <ToastStack toasts={toasts} onDismiss={dismiss} />
-      </div>
-    )
+  const stageMotion = {
+    initial:    { opacity: 0, y: 12, filter: 'blur(4px)' },
+    animate:    { opacity: 1, y: 0,  filter: 'blur(0px)' },
+    exit:       { opacity: 0, y: -8, filter: 'blur(4px)' },
+    transition: { duration: DURATION.slow, ease: EASE.standard },
+    style:      { display: 'flex', flexDirection: 'column' as const, flex: 1, minHeight: 0, overflow: 'hidden' },
   }
 
   return (
-    <div className="chat-shell" style={{
-      display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
-      background: 'radial-gradient(1200px 620px at 50% -8%, var(--bg-grad) 0%, transparent 70%), var(--bg)',
-      color: 'var(--text)', fontFamily: 'var(--font-body)',
-    }}>
+    <div className="chat-shell" style={shellStyle}>
 
-      {/* ── Header with back arrow on the left ── */}
-      <AppHeader onToast={addToast} leftExtra={backButton} />
-
-      {/* ── Message thread (wrapped for smooth stage transitions) ── */}
-      <div
-        className={`view-anim${leaving ? ' leaving' : ''}`}
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
-      >
-        <MessageList
-          messages={messages}
-          chips={chips}
-          guidance={guidance}
-          showGuidance={showGuidance}
-          isLoading={isLoading}
-          onChipClick={handleChipClick}
-          onDismissGuidance={handleDismissGuidance}
+      {/* AppHeader: shown for conversation + discovering, not results */}
+      {stage !== 'results' && (
+        <AppHeader
+          onToast={addToast}
+          leftExtra={stage === 'conversation' ? backButton : undefined}
         />
-      </div>
+      )}
 
-      {/* ── Composer dock + EligibilityOrb to the right ── */}
-      <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          {/* The orb anchors off THIS relative wrapper, which contains only
-              the dock — so `top: 50%` resolves to the centre of the input
-              pill, not the centre of dock + disclaimer below it. */}
-          <div style={{ position: 'relative' }}>
-            {showMeter && (
-              <div style={{
-                position: 'absolute',
-                left: '100%', top: '50%',
-                // -50% centres the orb geometrically against the dock; the
-                // extra +2px nudge drops it onto the typographic midline of
-                // the textarea (x-height sits ~2px below the geometric centre).
-                transform: 'translateY(calc(-50% + 2px))',
-                marginLeft: 16, zIndex: 5,
-              }}>
-                <EligibilityOrb
-                  key={unlockGlowKey}
-                  value={meterState.value}
-                  eligible={meterState.eligible}
-                  onClick={triggerAssessment}
-                  onEligibleAnimationComplete={
-                    // Only auto-trigger via animation callback on the first eligibility unlock.
-                    // After discovery has been shown, the click itself handles navigation instantly.
-                    hasShownDiscoveryRef.current ? undefined : triggerAssessment
-                  }
-                  newUnlock={orbNewUnlock}
-                  size={34}
-                  accent="var(--accent)"
-                />
-              </div>
-            )}
-            <div
-              className="dock floating"
-              style={{
-                display: 'flex', alignItems: 'flex-end', gap: 6,
-                padding: '7px 8px 7px 18px',
-              }}
-            >
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              placeholder="Reply to Benefits.AI…"
-              aria-label="Reply to Benefits.AI"
-              style={{
-                flex: 1, resize: 'none', border: 'none', outline: 'none', background: 'transparent',
-                fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: '24px',
-                color: 'var(--text)', padding: '7px 0', maxHeight: 132,
-              }}
+      <AnimatePresence mode="wait">
+        {stage === 'discovering' && (
+          <motion.div key="discovering" {...stageMotion}>
+            <Discovery done={discoveryDone} />
+          </motion.div>
+        )}
+
+        {stage === 'results' && results && (
+          <motion.div key="results" {...stageMotion}>
+            <Results
+              data={results}
+              onRestart={restartAssessment}
+              onBack={() => setStage('conversation')}
             />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingBottom: 1 }}>
-              <button
-                type="button"
-                className="wave-btn"
-                aria-label={voiceOn ? 'Voice input on' : 'Voice input'}
-                aria-pressed={voiceOn}
-                onClick={handleVoiceToggle}
-              >
-                <span className={`wave${voiceOn ? ' active' : ''}`} aria-hidden="true">
-                  <span /><span /><span /><span /><span />
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                aria-label="Send"
-                className="send-btn"
-                style={{ color: input.trim() && !isLoading ? 'var(--accent)' : 'var(--faint)' }}
-              >
-                <SendIcon size={20} />
-              </button>
-            </div>
-          </div>
-          </div>
-          <p style={{
-            textAlign: 'center', fontSize: 12, color: 'var(--faint)',
-            margin: '11px 0 0', lineHeight: 1.5,
-          }}>
-            Benefits.AI helps you explore what you may qualify for. It doesn&apos;t make formal determinations — the relevant agency does.
-          </p>
-        </div>
-      </div>
+          </motion.div>
+        )}
 
-      {/* ── Chat history sidebar — logged-in users only ── */}
+        {stage === 'conversation' && (
+          <motion.div key="conversation" {...stageMotion}>
+            <MessageList
+              messages={messages}
+              chips={chips}
+              guidance={guidance}
+              showGuidance={showGuidance}
+              isLoading={isLoading}
+              onChipClick={handleChipClick}
+              onDismissGuidance={handleDismissGuidance}
+            />
+
+            {/* Composer dock + EligibilityOrb */}
+            <div style={{ padding: '0 26px 20px', flexShrink: 0 }}>
+              <div style={{ maxWidth: 720, margin: '0 auto' }}>
+                <div style={{ position: 'relative' }}>
+                  {showMeter && (
+                    <div style={{
+                      position: 'absolute',
+                      left: '100%', top: '50%',
+                      transform: 'translateY(calc(-50% + 2px))',
+                      marginLeft: 16, zIndex: 5,
+                    }}>
+                      <EligibilityOrb
+                        key={unlockGlowKey}
+                        value={meterState.value}
+                        eligible={meterState.eligible}
+                        onClick={triggerAssessment}
+                        onEligibleAnimationComplete={
+                          hasShownDiscoveryRef.current ? undefined : triggerAssessment
+                        }
+                        newUnlock={orbNewUnlock}
+                        size={34}
+                        accent="var(--accent)"
+                      />
+                    </div>
+                  )}
+                  <div
+                    className="dock floating"
+                    style={{ display: 'flex', alignItems: 'flex-end', gap: 6, padding: '7px 8px 7px 18px' }}
+                  >
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      rows={1}
+                      placeholder="Reply to Benefits.AI…"
+                      aria-label="Reply to Benefits.AI"
+                      style={{
+                        flex: 1, resize: 'none', border: 'none', outline: 'none', background: 'transparent',
+                        fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: '24px',
+                        color: 'var(--text)', padding: '7px 0', maxHeight: 132,
+                      }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingBottom: 1 }}>
+                      <button
+                        type="button"
+                        className="wave-btn"
+                        aria-label={voiceOn ? 'Voice input on' : 'Voice input'}
+                        aria-pressed={voiceOn}
+                        onClick={handleVoiceToggle}
+                      >
+                        <span className={`wave${voiceOn ? ' active' : ''}`} aria-hidden="true">
+                          <span /><span /><span /><span /><span />
+                        </span>
+                      </button>
+                      <motion.button
+                        type="button"
+                        onClick={handleSend}
+                        disabled={!input.trim() || isLoading}
+                        aria-label="Send"
+                        className="send-btn"
+                        style={{ color: input.trim() && !isLoading ? 'var(--accent)' : 'var(--faint)' }}
+                        whileHover={input.trim() && !isLoading ? { scale: 1.08 } : {}}
+                        whileTap={input.trim() && !isLoading ? { scale: 0.93 } : {}}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                      >
+                        <SendIcon size={20} />
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
+                <p style={{
+                  textAlign: 'center', fontSize: 12, color: 'var(--faint)',
+                  margin: '11px 0 0', lineHeight: 1.5,
+                }}>
+                  Benefits.AI helps you explore what you may qualify for. It doesn&apos;t make formal determinations — the relevant agency does.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {!authLoading && user && (
         <ChatHistory
           open={histOpen}
